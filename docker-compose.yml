@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  thailand-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: thailand-my-car
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - thailand-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  thailand-network:
+    driver: bridge
