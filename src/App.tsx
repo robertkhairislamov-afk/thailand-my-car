@@ -1,14 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThailandHeader } from './components/thailand/ThailandHeader';
 import { Hero } from './components/thailand/Hero';
 import { AboutProject } from './components/thailand/AboutProject';
 import { InvestmentTiers } from './components/thailand/InvestmentTiers';
+import AdminApp from './AdminApp';
 import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
 
 export default function App() {
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [isAdminRoute, setIsAdminRoute] = useState(false);
+
+  // Check URL for admin route
+  useEffect(() => {
+    setIsAdminRoute(window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/'));
+  }, []);
+
+  // Render admin app if on admin route
+  if (isAdminRoute) {
+    return <AdminApp />;
+  }
 
   const handleInvest = (tier: number) => {
     if (!walletAddress) {

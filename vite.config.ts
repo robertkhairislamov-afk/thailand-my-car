@@ -59,14 +59,5 @@
     server: {
       port: 3000,
       open: true,
-      host: true,
-      allowedHosts: [
-        'sound-source-site-shows.trycloudflare.com',
-        '.trycloudflare.com',
-        '.loca.lt'
-      ],
-      hmr: {
-        clientPort: 443,
-      },
     },
   });
