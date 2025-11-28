@@ -1,6 +1,8 @@
-import { Car, TrendingUp, Shield, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Car, TrendingUp, Shield, Clock, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { api } from '../../services/api';
 import toyotaHeroImage from 'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png';
 
 interface HeroProps {
@@ -8,19 +10,46 @@ interface HeroProps {
   onInvestClick: () => void;
 }
 
+interface FundraisingData {
+  target: { baht: number; usd: number };
+  current: { baht: number; usd: number };
+  progress: number;
+  investors: { current: number; max: number };
+  cars: { total: number; assigned: number; available: number };
+  deadline: string;
+  isActive: boolean;
+}
+
 export function Hero({ isDark, onInvestClick }: HeroProps) {
-  // Fundraising data
-  const targetBaht = 2800000;
-  const targetUSD = 85000;
-  const currentBaht = 1680000; // 60% progress
-  const currentUSD = 51000;
-  const progress = (currentBaht / targetBaht) * 100;
-  const investorsCount = 4;
-  
-  // Countdown to deadline (example: January 31, 2025)
-  const deadline = new Date('2025-01-31T23:59:59');
+  const [fundraising, setFundraising] = useState<FundraisingData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFundraising = async () => {
+      const response = await api.getFundraising();
+      if (response.data) {
+        setFundraising(response.data);
+      }
+      setLoading(false);
+    };
+    loadFundraising();
+  }, []);
+
+  // Default values while loading
+  const targetBaht = fundraising?.target.baht || 2800000;
+  const targetUSD = fundraising?.target.usd || 85000;
+  const currentBaht = fundraising?.current.baht || 0;
+  const currentUSD = fundraising?.current.usd || 0;
+  const progress = fundraising?.progress || 0;
+  const investorsCount = fundraising?.investors.current || 0;
+  const maxInvestors = fundraising?.investors.max || 9;
+  const carsAvailable = fundraising?.cars?.available || 9;
+  const totalCars = fundraising?.cars?.total || 9;
+
+  // Countdown to deadline
+  const deadline = new Date(fundraising?.deadline || '2025-01-31T23:59:59');
   const now = new Date();
-  const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const daysLeft = Math.max(0, Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 
   return (
     <div className="relative overflow-hidden">
@@ -70,21 +99,21 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
             <span style={{ color: '#009696' }}>с криптовалютой</span>
           </motion.h1>
 
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto"
-            style={{ 
+            style={{
               color: isDark ? '#FFFAF0' : '#143C50',
               opacity: 0.9
             }}
           >
-            9 автомобилей Toyota • 180 000+ ฿/мес • Блокчейн-прозрачность
+            {totalCars} автомобилей Toyota • От $1,000 • 2.5%/мес или авто в собственность
           </motion.p>
 
           {/* Key Stats */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
@@ -95,8 +124,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                 <Car className="w-5 h-5" style={{ color: '#28B48C' }} />
               </div>
               <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Автопарк</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>9 Toyota</div>
+                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Авто доступно</div>
+                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{carsAvailable} из {totalCars}</div>
               </div>
             </div>
 
@@ -105,8 +134,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                 <TrendingUp className="w-5 h-5" style={{ color: '#009696' }} />
               </div>
               <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Доход/мес</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>180k+ ฿</div>
+                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Стейкинг</div>
+                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>2.5%/мес</div>
               </div>
             </div>
 
@@ -115,8 +144,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                 <Shield className="w-5 h-5" style={{ color: '#FFC850' }} />
               </div>
               <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>ROI через 6 мес</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>+20%</div>
+                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Крупным инвесторам</div>
+                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>+20% или авто</div>
               </div>
             </div>
           </motion.div>
@@ -158,7 +187,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                 Сбор средств
               </h3>
               <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                Инвесторов: {investorsCount} / 7
+                Инвесторов: {investorsCount} / {maxInvestors}
               </p>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{
@@ -224,13 +253,13 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
             }}
           >
             <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5" style={{ color: '#28B48C' }} />
+              <Car className="w-5 h-5" style={{ color: '#28B48C' }} />
               <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                Smart Contract Verified
+                Авто в собственность: {carsAvailable} свободно
               </span>
             </div>
             <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              Min: ฿404,600 (~$12,400)
+              Min: $1,000 (стейкинг) • $12,400 (авто)
             </div>
           </div>
         </motion.div>

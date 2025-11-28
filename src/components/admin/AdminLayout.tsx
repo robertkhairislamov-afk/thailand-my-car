@@ -7,9 +7,11 @@ interface AdminLayoutProps {
   onToggleTheme: () => void;
   currentPage: string;
   onNavigate: (page: string) => void;
+  onLogout?: () => void;
+  admin?: { name?: string; email?: string } | null;
 }
 
-export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNavigate }: AdminLayoutProps) {
+export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNavigate, onLogout, admin }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = [
@@ -85,6 +87,7 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
           </button>
 
           <button
+            onClick={onLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:scale-105"
             style={{
               background: 'rgba(231, 76, 60, 0.2)',
@@ -177,6 +180,7 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
               </button>
 
               <button
+                onClick={onLogout}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
                 style={{
                   background: 'rgba(231, 76, 60, 0.2)',
@@ -234,14 +238,24 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
               </button>
 
               {/* Admin Avatar */}
-              <div 
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
-                  color: '#FFFAF0'
-                }}
-              >
-                <span>A</span>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
+                    color: '#FFFAF0'
+                  }}
+                >
+                  <span>{admin?.name?.[0]?.toUpperCase() || 'A'}</span>
+                </div>
+                <div className="hidden md:block">
+                  <div className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 500 }}>
+                    {admin?.name || 'Admin'}
+                  </div>
+                  <div className="text-xs opacity-60" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                    {admin?.email || ''}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,68 +1,44 @@
-import { TrendingUp, TrendingDown, Users, DollarSign, Calendar, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { TrendingUp, TrendingDown, Users, DollarSign, Calendar, AlertCircle, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashboardProps {
   isDark: boolean;
+  data?: any;
+  loading?: boolean;
 }
 
-export function Dashboard({ isDark }: DashboardProps) {
-  // Mock data - replace with real API data
+export function Dashboard({ isDark, data, loading }: DashboardProps) {
+  // Use real data from API or defaults for empty state
   const stats = {
-    totalRaised: 51000,
-    targetAmount: 85000,
-    monthlyRevenue: 5200,
-    previousMonthRevenue: 4800,
-    activeInvestors: 4,
-    totalInvestors: 7,
-    roiPaidOut: 8400,
-    pendingApprovals: 2
+    totalRaised: Number(data?.stats?.total_invested || 0),
+    targetAmount: 85000, // 7 investors * ~$12,400
+    monthlyRevenue: Number(data?.stats?.monthly_revenue || 0),
+    previousMonthRevenue: Number(data?.stats?.previous_month_revenue || 0),
+    activeInvestors: Number(data?.stats?.active_investors || 0),
+    totalInvestors: 7, // Max investors
+    roiPaidOut: Number(data?.stats?.roi_paid || 0),
+    pendingApprovals: Number(data?.stats?.pending_count || 0)
   };
 
-  const monthlyChange = ((stats.monthlyRevenue - stats.previousMonthRevenue) / stats.previousMonthRevenue * 100).toFixed(1);
+  const monthlyChange = stats.previousMonthRevenue > 0
+    ? ((stats.monthlyRevenue - stats.previousMonthRevenue) / stats.previousMonthRevenue * 100).toFixed(1)
+    : '0';
   const progress = (stats.totalRaised / stats.targetAmount * 100).toFixed(1);
 
-  // Investment trends (last 6 months)
-  const investmentTrends = [
-    { month: 'Jun', amount: 12400 },
-    { month: 'Jul', amount: 0 },
-    { month: 'Aug', amount: 12400 },
-    { month: 'Sep', amount: 13800 },
-    { month: 'Oct', amount: 0 },
-    { month: 'Nov', amount: 12400 }
-  ];
+  // Investment trends from API or empty
+  const investmentTrends = data?.trends || [];
 
-  // Cumulative revenue
-  const cumulativeRevenue = [
-    { month: 'Jun', revenue: 5000 },
-    { month: 'Jul', revenue: 10200 },
-    { month: 'Aug', revenue: 15100 },
-    { month: 'Sep', revenue: 20500 },
-    { month: 'Oct', revenue: 25300 },
-    { month: 'Nov', revenue: 30500 }
-  ];
+  // Cumulative revenue from API or empty
+  const cumulativeRevenue = data?.revenue || [];
 
-  // Tier distribution
-  const tierDistribution = [
-    { name: '6 месяцев', value: 37200, investors: 3 },
-    { name: 'Долгосрочное', value: 13800, investors: 1 }
-  ];
+  // Tier distribution from API or empty
+  const tierDistribution = data?.tierDistribution || [];
 
-  // Top investors
-  const topInvestors = [
-    { name: '0x742d...3E4f', amount: 13800 },
-    { name: '0x8B5A...9C2D', amount: 12400 },
-    { name: '0x1F3C...7A8B', amount: 12400 },
-    { name: '0x9E2D...4B1C', amount: 12400 }
-  ];
+  // Top investors from API or empty
+  const topInvestors = data?.topInvestors || [];
 
-  // Recent activity
-  const recentActivity = [
-    { type: 'investment', text: 'Новая инвестиция от 0x742d...3E4f', amount: '$13,800', time: '2 часа назад', status: 'pending' },
-    { type: 'payout', text: 'Выплата инвестору 0x1F3C...7A8B', amount: '$2,480', time: '1 день назад', status: 'completed' },
-    { type: 'message', text: 'Новое сообщение от John Doe', amount: null, time: '2 дня назад', status: 'new' },
-    { type: 'report', text: 'Опубликован отчет за октябрь', amount: null, time: '5 дней назад', status: 'completed' },
-    { type: 'investment', text: 'Инвестиция подтверждена 0x8B5A...9C2D', amount: '$12,400', time: '1 неделю назад', status: 'confirmed' }
-  ];
+  // Recent activity from API or empty
+  const recentActivity = data?.recentActivity || [];
 
   const COLORS = ['#28B48C', '#009696'];
 
@@ -86,8 +62,40 @@ export function Dashboard({ isDark }: DashboardProps) {
     }
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[#009696]" />
+      </div>
+    );
+  }
+
+  // Check if we have any data
+  const hasData = stats.totalRaised > 0 || stats.activeInvestors > 0;
+
   return (
     <div className="space-y-8">
+      {/* Welcome message for empty state */}
+      {!hasData && (
+        <div
+          className="rounded-2xl p-8 border text-center"
+          style={{
+            background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+            borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
+          }}
+        >
+          <div className="text-6xl mb-4">🚀</div>
+          <h2 className="text-2xl mb-2" style={{ color: isDark ? '#FFC850' : '#143C50', fontWeight: 700 }}>
+            Добро пожаловать в Thailand My Car!
+          </h2>
+          <p className="opacity-70 max-w-lg mx-auto" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+            Платформа готова к работе. Статистика появится после первых инвестиций.
+            Цель: собрать $85,000 от 7 инвесторов.
+          </p>
+        </div>
+      )}
+
       {/* Alerts */}
       {stats.pendingApprovals > 0 && (
         <div 

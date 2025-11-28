@@ -3,47 +3,47 @@ import { useState } from 'react';
 
 interface InvestmentDetailProps {
   isDark: boolean;
+  investment: any;
   onBack: () => void;
+  onUpdateStatus?: (id: number, status: string) => void;
 }
 
-export function InvestmentDetail({ isDark, onBack }: InvestmentDetailProps) {
+export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, onUpdateStatus }: InvestmentDetailProps) {
   const [copied, setCopied] = useState(false);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(rawInvestment?.notes || '');
 
-  // Mock data - replace with real data from API
+  // Map raw data from API to expected format
   const investment = {
-    id: 42,
-    status: 'confirmed',
-    amount: 13800,
-    amountCrypto: 13800,
+    id: rawInvestment?.id || 0,
+    status: rawInvestment?.status || 'pending',
+    amount: Number(rawInvestment?.amount_usdt || 0),
+    amountCrypto: Number(rawInvestment?.amount_usdt || 0),
     tokenSymbol: 'USDT',
     tier: {
-      id: 1,
-      name: 'Долгосрочное участие',
-      roiPercent: null,
-      duration: 'ongoing'
+      id: rawInvestment?.tier_id || 1,
+      name: rawInvestment?.tier_name || (rawInvestment?.tier_id === 1 ? '6 месяцев +20%' : 'Долгосрочное участие'),
+      roiPercent: rawInvestment?.tier_id === 1 ? 20 : null,
+      duration: rawInvestment?.tier_id === 1 ? '6' : 'ongoing'
     },
     blockchain: 'BSC',
-    transactionHash: '0x742d35fA8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B',
-    blockNumber: 12345678,
-    fromAddress: '0x742d35fA8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B',
-    toAddress: '0x8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B742d35fA',
-    investmentDate: '2024-11-24T10:30:00Z',
-    unlockDate: null,
-    expectedReturn: null,
-    confirmedAt: '2024-11-24T11:00:00Z',
+    transactionHash: rawInvestment?.tx_hash || '',
+    blockNumber: rawInvestment?.block_number || 0,
+    fromAddress: rawInvestment?.wallet_address || '',
+    toAddress: '0x8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B742d35fA', // Platform wallet
+    investmentDate: rawInvestment?.created_at || new Date().toISOString(),
+    unlockDate: rawInvestment?.unlock_date || null,
+    expectedReturn: rawInvestment?.expected_return || null,
+    confirmedAt: rawInvestment?.confirmed_at || null,
     investor: {
-      walletAddress: '0x742d35fA8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B',
-      email: 'investor@example.com',
-      telegram: '@cryptoinvestor',
-      totalInvested: 13800,
-      joinedDate: '2024-11-24T10:30:00Z',
-      kycVerified: false
+      walletAddress: rawInvestment?.wallet_address || '',
+      email: rawInvestment?.user_email || '',
+      telegram: rawInvestment?.user_telegram || '',
+      totalInvested: Number(rawInvestment?.user_total_invested || rawInvestment?.amount_usdt || 0),
+      joinedDate: rawInvestment?.user_joined || rawInvestment?.created_at || new Date().toISOString(),
+      kycVerified: rawInvestment?.kyc_verified || false
     },
-    timeline: [
-      { status: 'created', timestamp: '2024-11-24T10:30:00Z', admin: null, note: 'Инвестиция создана' },
-      { status: 'submitted', timestamp: '2024-11-24T10:32:00Z', admin: null, note: 'Транзакция отправлена' },
-      { status: 'confirmed', timestamp: '2024-11-24T11:00:00Z', admin: 'Admin', note: 'Проверено, транзакция подтверждена на блокчейне' }
+    timeline: rawInvestment?.timeline || [
+      { status: 'created', timestamp: rawInvestment?.created_at, admin: null, note: 'Инвестиция создана' }
     ]
   };
 
@@ -126,9 +126,10 @@ export function InvestmentDetail({ isDark, onBack }: InvestmentDetailProps) {
             <span style={{ fontWeight: 600 }}>{getStatusText(investment.status)}</span>
           </div>
           
-          {investment.status === 'pending' && (
+          {investment.status === 'pending' && onUpdateStatus && (
             <div className="flex gap-2">
               <button
+                onClick={() => onUpdateStatus(investment.id, 'confirmed')}
                 className="px-4 py-2 rounded-xl transition-all hover:scale-105"
                 style={{
                   background: '#28B48C',
@@ -138,6 +139,7 @@ export function InvestmentDetail({ isDark, onBack }: InvestmentDetailProps) {
                 Подтвердить
               </button>
               <button
+                onClick={() => onUpdateStatus(investment.id, 'rejected')}
                 className="px-4 py-2 rounded-xl transition-all hover:scale-105"
                 style={{
                   background: 'rgba(231,76,60,0.2)',

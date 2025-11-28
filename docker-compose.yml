@@ -12,6 +12,8 @@ services:
       - "443:443"
     environment:
       - NODE_ENV=production
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - thailand-network
     healthcheck:
@@ -23,4 +25,5 @@ services:
 
 networks:
   thailand-network:
-    driver: bridge
+    external: true
+    name: thailand-my-car_thailand-network

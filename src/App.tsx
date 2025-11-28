@@ -3,18 +3,45 @@ import { ThailandHeader } from './components/thailand/ThailandHeader';
 import { Hero } from './components/thailand/Hero';
 import { AboutProject } from './components/thailand/AboutProject';
 import { InvestmentTiers } from './components/thailand/InvestmentTiers';
+import { InvestModal } from './components/thailand/InvestModal';
 import AdminApp from './AdminApp';
+import { api } from './services/api';
 import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
+
+interface TierData {
+  id: number;
+  name: string;
+  description: string;
+  min_investment_baht: string;
+  min_investment_usd: string;
+  duration_months: number;
+  return_percentage: string | null;
+  features: string[];
+}
 
 export default function App() {
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isAdminRoute, setIsAdminRoute] = useState(false);
+  const [tiers, setTiers] = useState<TierData[]>([]);
+  const [selectedTier, setSelectedTier] = useState<TierData | null>(null);
+  const [isInvestModalOpen, setIsInvestModalOpen] = useState(false);
 
   // Check URL for admin route
   useEffect(() => {
     setIsAdminRoute(window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/'));
+  }, []);
+
+  // Load tiers
+  useEffect(() => {
+    const loadTiers = async () => {
+      const response = await api.getInvestmentTiers();
+      if (response.data) {
+        setTiers(response.data);
+      }
+    };
+    loadTiers();
   }, []);
 
   // Render admin app if on admin route
@@ -22,15 +49,22 @@ export default function App() {
     return <AdminApp />;
   }
 
-  const handleInvest = (tier: number) => {
+  const handleInvest = (tierId: number) => {
     if (!walletAddress) {
       alert('Пожалуйста, подключите кошелек для инвестирования');
       return;
     }
-    
-    // Here would be the smart contract interaction
-    console.log(`Investing in tier ${tier} from wallet ${walletAddress}`);
-    alert(`Инвестиция в Tier ${tier} будет доступна после деплоя смарт-контракта`);
+
+    const tier = tiers.find(t => t.id === tierId);
+    if (tier) {
+      setSelectedTier(tier);
+      setIsInvestModalOpen(true);
+    }
+  };
+
+  const handleInvestSuccess = () => {
+    // Refresh data or show notification
+    console.log('Investment created successfully');
   };
 
   const scrollToInvest = () => {
@@ -314,6 +348,16 @@ export default function App() {
           </div>
         </footer>
       </div>
+
+      {/* Invest Modal */}
+      <InvestModal
+        isOpen={isInvestModalOpen}
+        onClose={() => setIsInvestModalOpen(false)}
+        tier={selectedTier}
+        walletAddress={walletAddress || ''}
+        isDark={isDark}
+        onSuccess={handleInvestSuccess}
+      />
     </div>
   );
 }
