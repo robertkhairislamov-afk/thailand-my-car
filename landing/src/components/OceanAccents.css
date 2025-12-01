@@ -1,0 +1,104 @@
+.ocean-accents {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Opacity variants */
+.ocean-accents--subtle { --orb-opacity: 0.03; }
+.ocean-accents--medium { --orb-opacity: 0.05; }
+.ocean-accents--vibrant { --orb-opacity: 0.08; }
+
+/* Gradient orbs - GPU accelerated with will-change */
+.ocean-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: var(--orb-opacity);
+  will-change: transform;
+}
+
+.ocean-orb--1 {
+  width: 24rem;
+  height: 24rem;
+  left: 0;
+  top: 0;
+  background: linear-gradient(135deg, #4A9FD8, #52C9C1);
+  transform: translate(-50%, -50%);
+  animation: orbFloat1 12s ease-in-out infinite;
+}
+
+.ocean-orb--2 {
+  width: 20rem;
+  height: 20rem;
+  right: 0;
+  top: 33%;
+  background: linear-gradient(135deg, #52C9C1, #5AB5E8);
+  transform: translate(40%, -30%);
+  animation: orbFloat2 15s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.ocean-orb--3 {
+  width: 24rem;
+  height: 24rem;
+  left: 50%;
+  bottom: 0;
+  background: linear-gradient(135deg, #5AB5E8, #4A9FD8);
+  filter: blur(90px);
+  transform: translate(-50%, 40%);
+  animation: orbFloat3 14s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+/* Light beams container */
+.ocean-beams {
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+}
+
+.ocean-beam {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  width: 2px;
+  transform-origin: top center;
+  background: linear-gradient(to bottom, rgba(74, 159, 216, 0.3), transparent);
+}
+
+.ocean-beam--1 { transform: translateX(-50%) rotate(-20deg); animation: beamPulse 5s ease-in-out infinite; }
+.ocean-beam--2 { transform: translateX(-50%) rotate(-7deg); animation: beamPulse 5s ease-in-out infinite 0.4s; }
+.ocean-beam--3 { transform: translateX(-50%) rotate(6deg); animation: beamPulse 5s ease-in-out infinite 0.8s; }
+.ocean-beam--4 { transform: translateX(-50%) rotate(19deg); animation: beamPulse 5s ease-in-out infinite 1.2s; }
+
+/* Animations */
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-20%, -10%) scale(1.2); }
+}
+
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(40%, -30%) scale(1); }
+  50% { transform: translate(10%, 0%) scale(1.3); }
+}
+
+@keyframes orbFloat3 {
+  0%, 100% { transform: translate(-50%, 40%) scale(1); }
+  50% { transform: translate(-90%, 10%) scale(1.15); }
+}
+
+@keyframes beamPulse {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.3; }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .ocean-orb,
+  .ocean-beam {
+    animation: none;
+  }
+}

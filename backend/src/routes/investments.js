@@ -3,6 +3,9 @@ const router = express.Router();
 const { body, validationResult, query } = require('express-validator');
 const pool = require('../config/database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { antiFraudMiddleware, logSuspiciousActivity } = require('../middleware/antifraud');
+const bscscan = require('../services/bscscan');
+const { logActivity, getClientIp } = require('../utils/logger');
 
 // Helper: Get platform setting
 async function getSetting(key, defaultValue = null) {
@@ -72,8 +75,9 @@ router.get('/cars/available', async (req, res) => {
   }
 });
 
-// Create new investment
+// Create new investment with anti-fraud protection
 router.post('/', [
+  ...antiFraudMiddleware,
   body('tierId').isInt(),
   body('walletAddress').matches(/^0x[a-fA-F0-9]{40}$/),
   body('amountUsdt').isFloat({ min: 0 }),
@@ -85,8 +89,13 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { tierId, walletAddress, amountUsdt, txHash } = req.body;
+    const { tierId, walletAddress, amountUsdt, txHash, _formStartTime } = req.body;
     const lowerAddress = walletAddress.toLowerCase();
+
+    // Get anti-fraud data from middleware
+    const integrityHash = req.integrityHash;
+    const integrityTimestamp = req.integrityTimestamp;
+    const formTiming = req.formTiming?.elapsedSeconds || null;
 
     // Get tier info
     const tierResult = await pool.query(
@@ -148,14 +157,65 @@ router.post('/', [
     const maturityDate = new Date();
     maturityDate.setMonth(maturityDate.getMonth() + 6); // 6 months for both tiers
 
-    // Create investment
+    // TX Verification (if txHash provided)
+    let txVerified = false;
+    let txVerificationStatus = 'pending';
+    let txVerificationDetails = null;
+    let txVerifiedAt = null;
+
+    if (txHash) {
+      // Get platform wallet for verification
+      const platformWallet = await getSetting('platform_wallet');
+
+      if (platformWallet) {
+        console.log(`Verifying TX: ${txHash} for amount: ${amountUsdt} to wallet: ${platformWallet}`);
+
+        const verificationResult = await bscscan.verifyStablecoinTransfer(
+          txHash,
+          platformWallet,
+          amountUsdt,
+          5 // 5% tolerance for network fees/rounding
+        );
+
+        if (verificationResult.success) {
+          txVerified = verificationResult.verified;
+          txVerificationStatus = verificationResult.status || (txVerified ? 'verified' : 'failed');
+          txVerificationDetails = verificationResult.details || { error: verificationResult.error };
+          txVerifiedAt = txVerified ? new Date() : null;
+
+          console.log(`TX Verification result: ${txVerificationStatus}`, txVerificationDetails);
+        } else {
+          txVerificationStatus = 'error';
+          txVerificationDetails = { error: verificationResult.error };
+          console.error('TX Verification error:', verificationResult.error);
+        }
+      }
+    }
+
+    // Determine initial status based on verification
+    let initialStatus = 'pending';
+    if (txHash) {
+      if (txVerified) {
+        // Auto-approve if enabled
+        const autoApprove = await getSetting('auto_approve_verified', 'false');
+        initialStatus = autoApprove === 'true' ? 'confirmed' : 'pending_confirmation';
+      } else {
+        initialStatus = 'pending_confirmation';
+      }
+    }
+
+    // Create investment with anti-fraud data
     const result = await pool.query(`
       INSERT INTO investments (user_id, tier_id, wallet_address, amount_usdt, amount_baht,
-                               tx_hash, maturity_date, status, tier_type, last_staking_calc)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                               tx_hash, maturity_date, status, tier_type, last_staking_calc,
+                               tx_verified, tx_verification_status, tx_verification_details, tx_verified_at,
+                               integrity_hash, ip_address, user_agent, form_timing_seconds, submission_timestamp)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `, [userId, tierId, lowerAddress, amountUsdt, amountBaht, txHash, maturityDate,
-        txHash ? 'pending_confirmation' : 'pending', tierType, new Date()]);
+        initialStatus, tierType, new Date(),
+        txVerified, txVerificationStatus, JSON.stringify(txVerificationDetails), txVerifiedAt,
+        integrityHash, req.ip, req.get('user-agent'), formTiming, integrityTimestamp]);
 
     const investment = result.rows[0];
 
@@ -180,6 +240,26 @@ router.post('/', [
         `, [carNumber, investment.id]);
       }
     }
+
+    // Log investment creation
+    await logActivity({
+      action: 'investment_created',
+      entityType: 'investment',
+      entityId: investment.id,
+      userType: 'user',
+      userId: userId,
+      userEmail: null,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      details: {
+        walletAddress: lowerAddress,
+        amountUsdt: amountUsdt,
+        tierType: tierType,
+        tierId: tierId,
+        txHash: txHash || null,
+        txVerified: txVerified
+      }
+    });
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -548,6 +628,96 @@ router.get('/fundraising', async (req, res) => {
     });
   } catch (error) {
     console.error('Get fundraising error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Verify/Re-verify TX hash for an investment (admin only)
+router.post('/verify-tx/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get investment
+    const investmentResult = await pool.query(
+      `SELECT * FROM investments WHERE id = $1`,
+      [id]
+    );
+
+    if (investmentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Investment not found' });
+    }
+
+    const investment = investmentResult.rows[0];
+
+    if (!investment.tx_hash) {
+      return res.status(400).json({ error: 'No TX hash to verify' });
+    }
+
+    // Get platform wallet
+    const platformWallet = await getSetting('platform_wallet');
+    if (!platformWallet) {
+      return res.status(500).json({ error: 'Platform wallet not configured' });
+    }
+
+    // Verify the transaction
+    const verificationResult = await bscscan.verifyStablecoinTransfer(
+      investment.tx_hash,
+      platformWallet,
+      parseFloat(investment.amount_usdt),
+      5 // 5% tolerance
+    );
+
+    let txVerified = false;
+    let txVerificationStatus = 'error';
+    let txVerificationDetails = null;
+
+    if (verificationResult.success) {
+      txVerified = verificationResult.verified;
+      txVerificationStatus = verificationResult.status || (txVerified ? 'verified' : 'failed');
+      txVerificationDetails = verificationResult.details || { error: verificationResult.error };
+    } else {
+      txVerificationDetails = { error: verificationResult.error };
+    }
+
+    // Update investment
+    await pool.query(`
+      UPDATE investments
+      SET tx_verified = $1, tx_verification_status = $2, tx_verification_details = $3,
+          tx_verified_at = $4, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+    `, [txVerified, txVerificationStatus, JSON.stringify(txVerificationDetails),
+        txVerified ? new Date() : null, id]);
+
+    res.json({
+      success: true,
+      verified: txVerified,
+      status: txVerificationStatus,
+      details: txVerificationDetails
+    });
+  } catch (error) {
+    console.error('Verify TX error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get verification stats (admin only)
+router.get('/verification-stats', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const stats = await pool.query(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(CASE WHEN tx_verified = true THEN 1 END) as verified,
+        COUNT(CASE WHEN tx_verification_status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN tx_verification_status = 'failed' THEN 1 END) as failed,
+        COUNT(CASE WHEN tx_verification_status = 'amount_mismatch' THEN 1 END) as amount_mismatch,
+        COUNT(CASE WHEN tx_verification_status = 'not_found' THEN 1 END) as not_found,
+        COUNT(CASE WHEN tx_hash IS NULL THEN 1 END) as no_tx_hash
+      FROM investments
+    `);
+
+    res.json(stats.rows[0]);
+  } catch (error) {
+    console.error('Get verification stats error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

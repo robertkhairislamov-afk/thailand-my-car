@@ -5,6 +5,7 @@
 
   export default defineConfig({
     plugins: [react()],
+    base: '/thailand-my-car/',
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -17,10 +18,10 @@
         'next-themes@0.4.6': 'next-themes',
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
-        'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png': path.resolve(__dirname, './src/assets/f4f6aa0cc69c114af6280953f6146b45713388f5.png'),
+'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png': path.resolve(__dirname, './src/assets/toyota-yaris.webp'),
         'figma:asset/e1e085ae75a2749b061ca9a2d4be120e5d13174a.png': path.resolve(__dirname, './src/assets/e1e085ae75a2749b061ca9a2d4be120e5d13174a.png'),
-        'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png': path.resolve(__dirname, './src/assets/cf6408d866e0ed42961c4b9ae724562d08a2e003.png'),
-        'figma:asset/5ced44ff814542adbb7d542e23cd5e996dbff908.png': path.resolve(__dirname, './src/assets/5ced44ff814542adbb7d542e23cd5e996dbff908.png'),
+        'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png': path.resolve(__dirname, './src/assets/thailand-background.webp'),
+        'figma:asset/5ced44ff814542adbb7d542e23cd5e996dbff908.png': path.resolve(__dirname, './src/assets/toyota-veloz.webp'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',

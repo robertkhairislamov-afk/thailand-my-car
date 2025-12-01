@@ -43,3 +43,17 @@ Thumbs.db
 
 # Server context (contains IP)
 SERVER-CONTEXT.md
+
+# Backend secrets
+backend/.env
+
+# Backup and temporary files
+src/assets/backup/
+src/assets/optimized/
+*.tar.gz
+WORK_SUMMARY.md
+
+# Landing build artifacts (handled by landing/.gitignore)
+landing/node_modules/
+landing/build/
+landing/dist/

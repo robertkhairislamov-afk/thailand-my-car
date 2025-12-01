@@ -1,0 +1,53 @@
+.floating-bubbles-container {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.floating-bubble {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  left: var(--left);
+  bottom: -50px;
+  border-radius: 50%;
+  background: rgba(74, 159, 216, 0.2);
+  border: 1px solid rgba(74, 159, 216, 0.1);
+  opacity: var(--opacity);
+  animation: floatUp var(--duration) linear infinite;
+  animation-delay: var(--delay);
+  will-change: transform;
+}
+
+@media (prefers-color-scheme: dark) {
+  .floating-bubble {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.dark .floating-bubble {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  50% {
+    transform: translateY(-50vh) translateX(20px) scale(1.05);
+  }
+  100% {
+    transform: translateY(-110vh) translateX(0) scale(1);
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .floating-bubble {
+    animation: none;
+    opacity: calc(var(--opacity) * 0.5);
+  }
+}

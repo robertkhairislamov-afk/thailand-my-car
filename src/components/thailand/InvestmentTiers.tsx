@@ -102,13 +102,13 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
             color: isDark ? '#FFC850' : '#143C50',
             fontWeight: 700
           }}>
-            Варианты инвестиций
+            Варианты участия
           </h2>
           <p className="text-lg md:text-xl max-w-2xl mx-auto" style={{
             color: isDark ? '#FFFAF0' : '#143C50',
             opacity: 0.8
           }}>
-            Выберите подходящую стратегию инвестирования
+            Выберите подходящий вариант партнёрского займа
           </p>
         </motion.div>
       </div>
@@ -201,7 +201,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                   border: `1px solid ${isDark ? 'rgba(255, 200, 80, 0.2)' : 'rgba(255, 200, 80, 0.1)'}`
                 }}>
                   <div className="text-sm mb-2 opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                    {isStaking ? 'Доходность' : 'Через 6 месяцев'}
+                    {isStaking ? 'Ожидаемая доходность (прогноз)' : 'Через 6 месяцев'}
                   </div>
                   {isStaking ? (
                     <>
@@ -210,10 +210,10 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                           color: '#FFC850',
                           fontWeight: 700
                         }}>
-                          {settings?.staking_monthly_rate || '2.5'}%/мес
+                          до {settings?.staking_monthly_rate || '2.5'}%/мес
                         </span>
                         <span className="text-lg opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          ({settings?.staking_annual_rate || '30'}% годовых)
+                          (до {settings?.staking_annual_rate || '30'}% годовых)
                         </span>
                       </div>
                       <div className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.8 }}>
@@ -223,13 +223,13 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                   ) : (
                     <>
                       <div className="text-lg mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                        <span className="font-bold" style={{ color: '#FFC850' }}>Выбор инвестора:</span>
+                        <span className="font-bold" style={{ color: '#FFC850' }}>Выбор партнёра:</span>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-5 h-5" style={{ color: '#28B48C' }} />
                           <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                            Забрать <strong>+{settings?.large_investor_return || '20'}%</strong> возврат
+                            Забрать <strong>до +{settings?.large_investor_return || '20'}%</strong> возврат
                           </span>
                         </div>
                         <div className="text-center text-sm opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>

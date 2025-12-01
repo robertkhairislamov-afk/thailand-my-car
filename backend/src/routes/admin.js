@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult, query } = require('express-validator');
 const pool = require('../config/database');
 const { authenticateToken, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
+const { logActivity, getClientIp } = require('../utils/logger');
 
 // Apply auth middleware to all admin routes
 router.use(authenticateToken);
@@ -129,7 +130,9 @@ router.get('/investments', async (req, res) => {
 
     params.push(limit, offset);
     const result = await pool.query(`
-      SELECT i.*, t.name as tier_name, t.return_percentage, u.email as user_email
+      SELECT i.*, t.name as tier_name, t.return_percentage, u.email as user_email,
+             i.tx_verified, i.tx_verification_status, i.tx_verification_details, i.tx_verified_at,
+             i.integrity_hash, i.ip_address, i.form_timing_seconds
       FROM investments i
       JOIN investment_tiers t ON i.tier_id = t.id
       LEFT JOIN users u ON i.user_id = u.id
@@ -201,6 +204,18 @@ router.patch('/investments/:id', [
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Investment not found' });
     }
+
+    // Log the activity
+    await logActivity({
+      action: 'investment_status_update',
+      entityType: 'investment',
+      entityId: id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      details: { newStatus: status, notes, returnAmount, nftTokenId }
+    });
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -325,6 +340,18 @@ router.patch('/messages/:id', [
       return res.status(404).json({ error: 'Message not found' });
     }
 
+    // Log the activity
+    await logActivity({
+      action: 'message_status_update',
+      entityType: 'message',
+      entityId: id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      details: { newStatus: status }
+    });
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update message error:', error);
@@ -390,6 +417,130 @@ router.patch('/tiers/:id', requireSuperAdmin, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update tier error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get activity logs
+router.get('/logs', async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      action,
+      entityType,
+      userId,
+      startDate,
+      endDate
+    } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = '';
+    const params = [];
+    let paramIndex = 1;
+    const conditions = [];
+
+    if (action) {
+      conditions.push(`action = $${paramIndex}`);
+      params.push(action);
+      paramIndex++;
+    }
+
+    if (entityType) {
+      conditions.push(`entity_type = $${paramIndex}`);
+      params.push(entityType);
+      paramIndex++;
+    }
+
+    if (userId) {
+      conditions.push(`user_id = $${paramIndex}`);
+      params.push(userId);
+      paramIndex++;
+    }
+
+    if (startDate) {
+      conditions.push(`created_at >= $${paramIndex}`);
+      params.push(startDate);
+      paramIndex++;
+    }
+
+    if (endDate) {
+      conditions.push(`created_at <= $${paramIndex}`);
+      params.push(endDate);
+      paramIndex++;
+    }
+
+    if (conditions.length > 0) {
+      whereClause = 'WHERE ' + conditions.join(' AND ');
+    }
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM activity_logs ${whereClause}`,
+      params
+    );
+
+    params.push(limit, offset);
+    const result = await pool.query(`
+      SELECT * FROM activity_logs
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `, params);
+
+    // Get unique actions and entity types for filters
+    const actionsResult = await pool.query(
+      'SELECT DISTINCT action FROM activity_logs ORDER BY action'
+    );
+    const entityTypesResult = await pool.query(
+      'SELECT DISTINCT entity_type FROM activity_logs WHERE entity_type IS NOT NULL ORDER BY entity_type'
+    );
+
+    res.json({
+      logs: result.rows,
+      total: parseInt(countResult.rows[0].count),
+      page: parseInt(page),
+      limit: parseInt(limit),
+      filters: {
+        actions: actionsResult.rows.map(r => r.action),
+        entityTypes: entityTypesResult.rows.map(r => r.entity_type)
+      }
+    });
+  } catch (error) {
+    console.error('Get logs error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get logs statistics
+router.get('/logs/stats', async (req, res) => {
+  try {
+    const [total, today, byAction, byEntity] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM activity_logs'),
+      pool.query("SELECT COUNT(*) FROM activity_logs WHERE created_at >= CURRENT_DATE"),
+      pool.query(`
+        SELECT action, COUNT(*) as count
+        FROM activity_logs
+        GROUP BY action
+        ORDER BY count DESC
+        LIMIT 10
+      `),
+      pool.query(`
+        SELECT entity_type, COUNT(*) as count
+        FROM activity_logs
+        WHERE entity_type IS NOT NULL
+        GROUP BY entity_type
+        ORDER BY count DESC
+      `)
+    ]);
+
+    res.json({
+      total: parseInt(total.rows[0].count),
+      today: parseInt(today.rows[0].count),
+      byAction: byAction.rows,
+      byEntity: byEntity.rows
+    });
+  } catch (error) {
+    console.error('Get logs stats error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

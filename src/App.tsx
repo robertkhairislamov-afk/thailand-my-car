@@ -5,6 +5,8 @@ import { AboutProject } from './components/thailand/AboutProject';
 import { InvestmentTiers } from './components/thailand/InvestmentTiers';
 import { InvestModal } from './components/thailand/InvestModal';
 import { ChatWidget } from './components/ChatWidget';
+import { ProfilePage } from './components/thailand/ProfilePage';
+import { SupportModal } from './components/thailand/SupportModal';
 import AdminApp from './AdminApp';
 import { api } from './services/api';
 import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
@@ -28,10 +30,15 @@ export default function App() {
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [selectedTier, setSelectedTier] = useState<TierData | null>(null);
   const [isInvestModalOpen, setIsInvestModalOpen] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
-  // Check URL for admin route
+  // Check URL for admin route (under /thailand-my-car/admin)
   useEffect(() => {
-    setIsAdminRoute(window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/'));
+    const path = window.location.pathname;
+    setIsAdminRoute(
+      path === '/thailand-my-car/admin' ||
+      path.startsWith('/thailand-my-car/admin/')
+    );
   }, []);
 
   // Load tiers
@@ -207,6 +214,14 @@ export default function App() {
             </div>
           )}
 
+          {/* Profile Section */}
+          {activeTab === 'profile' && (
+            <ProfilePage
+              walletAddress={walletAddress}
+              onBack={() => setActiveTab('home')}
+            />
+          )}
+
           {/* Roadmap Section - Coming Soon */}
           {activeTab === 'roadmap' && (
             <div className="max-w-7xl mx-auto px-6 py-16">
@@ -227,11 +242,11 @@ export default function App() {
 
               <div className="space-y-6">
                 {[
-                  { quarter: 'Q4 2024', title: 'Запуск платформы', status: 'completed', items: ['Создание Web3 платформы', 'Подключение MetaMask', 'Дизайн и UI/UX'] },
-                  { quarter: 'Декабрь 2024', title: 'Сбор средств', status: 'current', items: ['Привлечение 6-7 инвесторов', 'Достижение цели ฿2.8M', 'KYC и AML процедуры'] },
-                  { quarter: 'Январь 2025', title: 'Закрытие раунда', status: 'upcoming', items: ['Завершение сбора средств', 'Выпуск NFT сертификатов', 'Начало юридического оформления'] },
-                  { quarter: 'Февраль 2025', title: 'Юридическое оформление', status: 'upcoming', items: ['Регистрация долей', 'Подписание договоров', 'Настройка автоматических выплат'] },
-                  { quarter: 'Март 2025', title: 'Первые выплаты', status: 'upcoming', items: ['Начало ежемесячных выплат', 'Dashboard с реальными данными', 'Governance голосования'] },
+                  { quarter: 'Q4 2025', title: 'Запуск платформы', status: 'completed', items: ['Создание Web3 платформы', 'Подключение MetaMask', 'Дизайн и UI/UX'] },
+                  { quarter: 'Декабрь 2025 - Январь 2026', title: 'Сбор средств', status: 'current', items: ['Привлечение 6-7 инвесторов', 'Достижение цели ฿2.8M', 'KYC и AML процедуры'] },
+                  { quarter: 'Январь 2026', title: 'Закрытие раунда', status: 'upcoming', items: ['Завершение сбора средств', 'Начало юридического оформления'] },
+                  { quarter: 'Февраль 2026', title: 'Юридическое оформление', status: 'upcoming', items: ['Регистрация долей', 'Подписание договоров', 'Настройка автоматических выплат'] },
+                  { quarter: 'Март 2026', title: 'Первые выплаты', status: 'upcoming', items: ['Начало ежемесячных выплат', 'Dashboard с реальными данными', 'Governance голосования'] },
                 ].map((milestone, index) => (
                   <div key={index} className="rounded-2xl p-6 backdrop-blur-xl border"
                     style={{
@@ -320,19 +335,6 @@ export default function App() {
                   <div>📱 WhatsApp: +66 XX XXX XXXX</div>
                 </div>
               </div>
-              <div>
-                <h4 className="text-lg mb-3" style={{ 
-                  color: isDark ? '#FFC850' : '#143C50',
-                  fontWeight: 600
-                }}>
-                  Документы
-                </h4>
-                <div className="space-y-2 text-sm" style={{ color: '#009696' }}>
-                  <div className="cursor-pointer hover:underline">📄 Whitepaper</div>
-                  <div className="cursor-pointer hover:underline">📜 Legal Documents</div>
-                  <div className="cursor-pointer hover:underline">🔐 Smart Contract</div>
-                </div>
-              </div>
             </div>
             <div className="pt-8 border-t text-center text-sm opacity-70"
               style={{
@@ -340,10 +342,10 @@ export default function App() {
                 color: isDark ? '#FFFAF0' : '#143C50'
               }}
             >
-              <p className="mb-2">© 2024 Thailand My Car. All rights reserved.</p>
+              <p className="mb-2">© 2025 Thailand My Car. All rights reserved.</p>
               <p className="text-xs">
-                ⚠️ Инвестиции несут риски. Проект не является финансовой консультацией. 
-                Платформа предназначена для квалифицированных инвесторов.
+                ⚠️ Частные займы несут риски. Доходность не гарантируется. Это не публичное предложение ценных бумаг.
+                Платформа предназначена для частных договорённостей между знакомыми лицами.
               </p>
             </div>
           </div>
@@ -362,6 +364,40 @@ export default function App() {
         isDark={isDark}
         onSuccess={handleInvestSuccess}
       />
+
+      {/* Support Modal */}
+      <SupportModal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
+        isDark={isDark}
+        walletAddress={walletAddress}
+      />
+
+      {/* Floating Support Button */}
+      <button
+        onClick={() => setIsSupportModalOpen(true)}
+        className="fixed bottom-8 right-8 p-4 rounded-full shadow-2xl transition-all hover:scale-110 animate-pulse"
+        style={{
+          background: 'linear-gradient(135deg, #009696 0%, #28B48C 100%)',
+          zIndex: 9999,
+          boxShadow: '0 4px 20px rgba(0, 150, 150, 0.5)',
+        }}
+        title="Поддержка"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#FFFAF0"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </button>
     </div>
   );
 }

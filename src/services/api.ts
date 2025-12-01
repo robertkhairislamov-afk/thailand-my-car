@@ -73,6 +73,13 @@ class ApiService {
     return this.request<{ valid: boolean; user: any }>('/api/auth/verify');
   }
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ message: string }>('/api/auth/admin/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
   // Investments
   async getInvestmentTiers() {
     return this.request<any[]>('/api/investments/tiers');
@@ -125,11 +132,42 @@ class ApiService {
     walletAddress: string;
     amountUsdt: number;
     txHash?: string;
+    // Anti-fraud fields
+    _formStartTime?: number;
+    website?: string; // honeypot - should be empty
   }) {
-    return this.request<any>('/api/investments', {
+    return this.request<{
+      id: string;
+      status: string;
+      tx_verified?: boolean;
+      tx_verification_status?: string;
+    }>('/api/investments', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async verifyTransaction(investmentId: string) {
+    return this.request<{
+      success: boolean;
+      verified: boolean;
+      status: string;
+      details?: any;
+    }>(`/api/investments/verify-tx/${investmentId}`, {
+      method: 'POST',
+    });
+  }
+
+  async getVerificationStats() {
+    return this.request<{
+      total: string;
+      verified: string;
+      pending: string;
+      failed: string;
+      amount_mismatch: string;
+      not_found: string;
+      no_tx_hash: string;
+    }>('/api/investments/verification-stats');
   }
 
   async getWalletInvestments(walletAddress: string) {
@@ -195,6 +233,37 @@ class ApiService {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
+  }
+
+  // Logs
+  async getAdminLogs(params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    entityType?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request<{
+      logs: any[];
+      total: number;
+      page: number;
+      limit: number;
+      filters: {
+        actions: string[];
+        entityTypes: string[];
+      };
+    }>(`/api/admin/logs${query ? `?${query}` : ''}`);
+  }
+
+  async getAdminLogsStats() {
+    return this.request<{
+      total: number;
+      today: number;
+      byAction: { action: string; count: string }[];
+      byEntity: { entity_type: string; count: string }[];
+    }>('/api/admin/logs/stats');
   }
 }
 

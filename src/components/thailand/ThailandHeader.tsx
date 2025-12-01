@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Moon, Sun, Menu, X, Wallet, Car } from 'lucide-react';
+import { Moon, Sun, Menu, X, Wallet, Car, User } from 'lucide-react';
 
 interface ThailandHeaderProps {
   isDark: boolean;
@@ -118,6 +118,7 @@ export function ThailandHeader({
     { id: 'about', label: 'О проекте' },
     { id: 'invest', label: 'Инвестиции' },
     { id: 'dashboard', label: 'Dashboard' },
+    { id: 'profile', label: 'Профиль' },
     { id: 'roadmap', label: 'Roadmap' }
   ];
 
@@ -196,18 +197,36 @@ export function ThailandHeader({
 
             {/* Connect Wallet Button */}
             {walletAddress ? (
-              <button
-                onClick={disconnectWallet}
-                className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-105"
-                style={{
-                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
-                  color: '#FFFAF0',
-                  fontWeight: 600
-                }}
-              >
-                <Wallet className="w-4 h-4" />
-                <span>{formatAddress(walletAddress)}</span>
-              </button>
+              <div className="hidden md:flex items-center gap-2">
+                {/* Profile Button */}
+                <button
+                  onClick={() => onTabChange('profile')}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+                  style={{
+                    backgroundColor: activeTab === 'profile'
+                      ? (isDark ? 'rgba(255, 200, 80, 0.2)' : 'rgba(0, 150, 150, 0.2)')
+                      : (isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'),
+                    color: activeTab === 'profile'
+                      ? (isDark ? '#FFC850' : '#009696')
+                      : (isDark ? '#FFFAF0' : '#143C50')
+                  }}
+                >
+                  <User className="w-4 h-4" />
+                </button>
+                {/* Wallet Button */}
+                <button
+                  onClick={disconnectWallet}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+                  style={{
+                    background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
+                    color: '#FFFAF0',
+                    fontWeight: 600
+                  }}
+                >
+                  <Wallet className="w-4 h-4" />
+                  <span>{formatAddress(walletAddress)}</span>
+                </button>
+              </div>
             ) : (
               <button
                 onClick={connectWallet}

@@ -1,5 +1,6 @@
-import { ArrowLeft, Copy, ExternalLink, CheckCircle, XCircle, AlertCircle, Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Copy, ExternalLink, CheckCircle, XCircle, AlertCircle, Clock, DollarSign, Calendar, TrendingUp, Shield, ShieldAlert, ShieldCheck, RefreshCw, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { api } from '../../services/api';
 
 interface InvestmentDetailProps {
   isDark: boolean;
@@ -11,6 +12,10 @@ interface InvestmentDetailProps {
 export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, onUpdateStatus }: InvestmentDetailProps) {
   const [copied, setCopied] = useState(false);
   const [notes, setNotes] = useState(rawInvestment?.notes || '');
+  const [verifying, setVerifying] = useState(false);
+  const [txVerified, setTxVerified] = useState(rawInvestment?.tx_verified || false);
+  const [txVerificationStatus, setTxVerificationStatus] = useState(rawInvestment?.tx_verification_status || 'pending');
+  const [txVerificationDetails, setTxVerificationDetails] = useState(rawInvestment?.tx_verification_details || null);
 
   // Map raw data from API to expected format
   const investment = {
@@ -51,6 +56,57 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleVerifyTx = async () => {
+    if (!rawInvestment?.id || !rawInvestment?.tx_hash) return;
+
+    setVerifying(true);
+    try {
+      const response = await api.verifyTransaction(rawInvestment.id);
+      if (response.data) {
+        setTxVerified(response.data.verified);
+        setTxVerificationStatus(response.data.status);
+        setTxVerificationDetails(response.data.details);
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const getVerificationColor = (status: string) => {
+    switch (status) {
+      case 'verified': return '#28B48C';
+      case 'pending': return '#FFC850';
+      case 'failed':
+      case 'not_found':
+      case 'amount_mismatch':
+      case 'recipient_mismatch': return '#E74C3C';
+      default: return '#FFC850';
+    }
+  };
+
+  const getVerificationIcon = (status: string) => {
+    switch (status) {
+      case 'verified': return <ShieldCheck className="w-5 h-5" />;
+      case 'pending': return <Shield className="w-5 h-5" />;
+      default: return <ShieldAlert className="w-5 h-5" />;
+    }
+  };
+
+  const getVerificationText = (status: string) => {
+    switch (status) {
+      case 'verified': return 'Транзакция верифицирована';
+      case 'pending': return 'Ожидает проверки';
+      case 'not_found': return 'Транзакция не найдена';
+      case 'failed': return 'Транзакция не прошла';
+      case 'amount_mismatch': return 'Сумма не совпадает';
+      case 'recipient_mismatch': return 'Получатель не совпадает';
+      case 'error': return 'Ошибка проверки';
+      default: return status;
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -314,6 +370,102 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
               </div>
             </div>
           </div>
+
+          {/* TX Verification Status */}
+          {rawInvestment?.tx_hash && (
+            <div
+              className="rounded-2xl p-6 backdrop-blur-xl border"
+              style={{
+                background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+                borderColor: getVerificationColor(txVerificationStatus)
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
+                  Верификация TX
+                </h2>
+                <div
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                  style={{
+                    background: `${getVerificationColor(txVerificationStatus)}20`,
+                    color: getVerificationColor(txVerificationStatus)
+                  }}
+                >
+                  {getVerificationIcon(txVerificationStatus)}
+                  <span style={{ fontWeight: 600, fontSize: '14px' }}>{getVerificationText(txVerificationStatus)}</span>
+                </div>
+              </div>
+
+              {/* Verification Details */}
+              {txVerificationDetails && (
+                <div className="space-y-3 mb-4">
+                  {txVerificationDetails.from && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Отправитель:</span>
+                      <code className="font-mono text-xs" style={{ color: '#009696' }}>
+                        {txVerificationDetails.from.slice(0, 8)}...{txVerificationDetails.from.slice(-6)}
+                      </code>
+                    </div>
+                  )}
+                  {txVerificationDetails.amount && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Сумма:</span>
+                      <span style={{ color: '#28B48C', fontWeight: 600 }}>
+                        ${txVerificationDetails.amount.toLocaleString()} {txVerificationDetails.token}
+                      </span>
+                    </div>
+                  )}
+                  {txVerificationDetails.timestamp && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Время транзакции:</span>
+                      <span style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                        {new Date(txVerificationDetails.timestamp).toLocaleString('ru-RU')}
+                      </span>
+                    </div>
+                  )}
+                  {txVerificationDetails.confirmations && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Подтверждений:</span>
+                      <span style={{ color: '#28B48C', fontWeight: 600 }}>
+                        {txVerificationDetails.confirmations}
+                      </span>
+                    </div>
+                  )}
+                  {txVerificationDetails.error && (
+                    <div className="p-3 rounded-lg" style={{ background: 'rgba(231,76,60,0.1)' }}>
+                      <span className="text-sm" style={{ color: '#E74C3C' }}>
+                        {txVerificationDetails.error}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Re-verify Button */}
+              <button
+                onClick={handleVerifyTx}
+                disabled={verifying}
+                className="w-full px-4 py-2 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2"
+                style={{
+                  background: isDark ? 'rgba(0,150,150,0.2)' : 'rgba(0,150,150,0.1)',
+                  color: '#009696',
+                  border: `1px solid ${isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'}`
+                }}
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Проверяем...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Перепроверить транзакцию
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Admin Notes */}
           <div 
