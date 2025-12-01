@@ -4,6 +4,7 @@ import { Hero } from './components/thailand/Hero';
 import { AboutProject } from './components/thailand/AboutProject';
 import { InvestmentTiers } from './components/thailand/InvestmentTiers';
 import { InvestModal } from './components/thailand/InvestModal';
+import { ChatWidget } from './components/ChatWidget';
 import AdminApp from './AdminApp';
 import { api } from './services/api';
 import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
@@ -347,6 +348,9 @@ export default function App() {
             </div>
           </div>
         </footer>
+
+        {/* Support Button */}
+        <ChatWidget isDark={isDark} />
       </div>
 
       {/* Invest Modal */}

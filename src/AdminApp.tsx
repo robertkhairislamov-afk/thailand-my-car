@@ -5,6 +5,8 @@ import { InvestmentDetail } from './components/admin/InvestmentDetail';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { api } from './services/api';
 import { Loader2 } from 'lucide-react';
+import { Messages } from './components/admin/Messages';
+import { ChatWidget } from './components/ChatWidget';
 
 export default function AdminApp() {
   const [isDark, setIsDark] = useState(true);
@@ -329,92 +331,7 @@ export default function AdminApp() {
 
       case 'messages':
         return (
-          <div className="space-y-6">
-            <h1 className="text-3xl" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 700 }}>
-              Сообщения
-            </h1>
-
-            {dataLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-[#009696]" />
-              </div>
-            ) : messages.length === 0 ? (
-              <div
-                className="rounded-2xl p-12 text-center border"
-                style={{
-                  background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-                  borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
-                }}
-              >
-                <div className="text-6xl mb-4">📬</div>
-                <h3 className="text-xl mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
-                  Пока нет сообщений
-                </h3>
-                <p className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  Сообщения от пользователей появятся здесь
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className="rounded-2xl p-6 backdrop-blur-xl border transition-all hover:scale-[1.01] cursor-pointer"
-                    style={{
-                      background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-                      borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
-                            {msg.name}
-                          </h3>
-                          <span
-                            className="px-2 py-1 rounded-full text-xs"
-                            style={{
-                              background: msg.status === 'new' ? 'rgba(255,200,80,0.2)' :
-                                         msg.status === 'read' ? 'rgba(93,217,209,0.2)' :
-                                         'rgba(40,180,140,0.2)',
-                              color: msg.status === 'new' ? '#FFC850' :
-                                    msg.status === 'read' ? '#5DD9D1' :
-                                    '#28B48C'
-                            }}
-                          >
-                            {msg.status === 'new' ? 'Новое' : msg.status === 'read' ? 'Прочитано' : 'Отвечено'}
-                          </span>
-                        </div>
-                        <p className="text-sm opacity-70 mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          {msg.email}
-                        </p>
-                        <p className="mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 500 }}>
-                          {msg.subject || 'Без темы'}
-                        </p>
-                        <p className="text-sm opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          {msg.message}
-                        </p>
-                      </div>
-                      <div className="text-right flex flex-col gap-2">
-                        <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          {new Date(msg.created_at).toLocaleDateString('ru-RU')}
-                        </p>
-                        {msg.status === 'new' && (
-                          <button
-                            onClick={() => handleUpdateMessageStatus(msg.id, 'read')}
-                            className="px-3 py-1 rounded-lg text-xs"
-                            style={{ background: 'rgba(0,150,150,0.2)', color: '#009696' }}
-                          >
-                            Прочитано
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <Messages isDark={isDark} />
         );
 
       case 'reports':
@@ -452,6 +369,7 @@ export default function AdminApp() {
       admin={admin}
     >
       {renderPage()}
+      <ChatWidget isDark={isDark} />
     </AdminLayout>
   );
 }
