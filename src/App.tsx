@@ -7,7 +7,7 @@ import { InvestmentTiers } from './components/thailand/InvestmentTiers';
 import { InvestModal } from './components/thailand/InvestModal';
 import { ChatWidget } from './components/ChatWidget';
 import { ProfilePage } from './components/thailand/ProfilePage';
-import { InvestorDashboard } from './components/thailand/InvestorDashboard';
+import { InvestorDashboard } from './components/InvestorDashboard';
 import AdminApp from './AdminApp';
 import { api } from './services/api';
 import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
@@ -187,7 +187,9 @@ export default function App() {
 
           {/* Dashboard Section */}
           {activeTab === 'dashboard' && (
-            <InvestorDashboard walletAddress={walletAddress} isDark={isDark} />
+            <InvestorDashboard
+              walletAddress={walletAddress}
+            />
           )}
 
           {/* Profile Section */}
