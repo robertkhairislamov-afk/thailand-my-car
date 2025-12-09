@@ -42,22 +42,40 @@ export function InvestorDashboard({ walletAddress }: InvestorDashboardProps) {
       if (response.data) {
         // Transform backend data to component format
         const transformed = response.data.map((inv: any) => {
-          const startDate = new Date(inv.created_at);
+          // Backend uses invested_at, not created_at
+          const startDate = new Date(inv.invested_at);
           const now = new Date();
-          const monthsPassed = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-          const totalMonths = inv.tier_id === 1 ? 12 : inv.tier_id === 2 ? 12 : 6;
-          const monthlyRate = inv.tier_id === 1 ? 2.5 : inv.tier_id === 2 ? 2.5 : 0;
-          const lockPeriod = inv.tier_id === 1 ? 6 : inv.tier_id === 2 ? 6 : 0;
+
+          // Validate date
+          const isValidDate = !isNaN(startDate.getTime());
+
+          // Calculate months passed correctly
+          const monthsPassed = isValidDate
+            ? Math.max(0, (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()))
+            : 0;
+
+          // Lock period is 12 months for staking
+          const lockPeriod = 12;
+          const totalMonths = 12;
+
+          // Monthly rate: 2.5% for staking, 0 for car_share
+          const monthlyRate = inv.tier_type === 'staking' ? 2.5 : 0;
+
           const isLocked = monthsPassed < lockPeriod;
-          const monthsUntilUnlock = isLocked ? lockPeriod - monthsPassed : 0;
-          const earned = parseFloat(inv.amount_usdt) * (monthlyRate / 100) * monthsPassed;
+          const monthsUntilUnlock = isLocked ? Math.max(0, lockPeriod - monthsPassed) : 0;
+
+          // Calculate earnings
+          const principal = parseFloat(inv.amount_usdt) || 0;
+          const earned = inv.tier_type === 'staking'
+            ? principal * (monthlyRate / 100) * monthsPassed
+            : 0;
 
           return {
             id: inv.id,
-            amount: parseFloat(inv.amount_usdt),
+            amount: principal,
             status: inv.status === 'withdrawal_requested' ? 'withdrawal-request' : inv.status,
-            type: inv.tier_id === 3 ? 'car' : 'staking',
-            startDate: startDate.toLocaleDateString('ru-RU'),
+            type: inv.tier_type === 'car_share' ? 'car' : 'staking',
+            startDate: isValidDate ? startDate.toLocaleDateString('ru-RU') : '-',
             earned: Math.round(earned * 100) / 100,
             monthlyRate,
             totalMonths,
