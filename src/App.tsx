@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { CheckCircle, RefreshCw, Circle, Scale } from 'lucide-react';
 import { ThailandHeader } from './components/thailand/ThailandHeader';
 import { Hero } from './components/thailand/Hero';
 import { AboutProject } from './components/thailand/AboutProject';
@@ -6,7 +7,7 @@ import { InvestmentTiers } from './components/thailand/InvestmentTiers';
 import { InvestModal } from './components/thailand/InvestModal';
 import { ChatWidget } from './components/ChatWidget';
 import { ProfilePage } from './components/thailand/ProfilePage';
-import { SupportModal } from './components/thailand/SupportModal';
+import { InvestorDashboard } from './components/thailand/InvestorDashboard';
 import AdminApp from './AdminApp';
 import { api } from './services/api';
 import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
@@ -30,8 +31,7 @@ export default function App() {
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [selectedTier, setSelectedTier] = useState<TierData | null>(null);
   const [isInvestModalOpen, setIsInvestModalOpen] = useState(false);
-  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
-
+  
   // Check URL for admin route (under /thailand-my-car/admin)
   useEffect(() => {
     const path = window.location.pathname;
@@ -86,6 +86,29 @@ export default function App() {
     }, 100);
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+
+    // Scroll to corresponding section
+    if (tab === 'about') {
+      setTimeout(() => {
+        const aboutSection = document.getElementById('about-section');
+        if (aboutSection) {
+          aboutSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else if (tab === 'invest') {
+      setTimeout(() => {
+        const investSection = document.getElementById('investment-section');
+        if (investSection) {
+          investSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else if (tab === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className={`min-h-screen relative overflow-hidden transition-colors duration-500`}
       style={{
@@ -126,11 +149,11 @@ export default function App() {
 
       {/* Content */}
       <div className="relative z-10">
-        <ThailandHeader 
+        <ThailandHeader
           isDark={isDark}
           onToggleTheme={() => setIsDark(!isDark)}
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           walletAddress={walletAddress}
           onWalletChange={setWalletAddress}
         />
@@ -162,56 +185,9 @@ export default function App() {
             </section>
           )}
 
-          {/* Dashboard Section - Coming Soon */}
+          {/* Dashboard Section */}
           {activeTab === 'dashboard' && (
-            <div className="max-w-7xl mx-auto px-6 py-16">
-              <div className="text-center py-20 rounded-3xl backdrop-blur-xl border"
-                style={{
-                  background: isDark 
-                    ? 'linear-gradient(135deg, rgba(26, 78, 100, 0.6) 0%, rgba(20, 60, 80, 0.4) 100%)'
-                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 250, 240, 0.7) 100%)',
-                  borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
-                }}
-              >
-                {walletAddress ? (
-                  <>
-                    <h2 className="text-3xl md:text-4xl mb-4" style={{ 
-                      color: isDark ? '#FFC850' : '#143C50',
-                      fontWeight: 700
-                    }}>
-                      Dashboard для инвесторов
-                    </h2>
-                    <p className="text-lg mb-6" style={{ 
-                      color: isDark ? '#FFFAF0' : '#143C50',
-                      opacity: 0.8
-                    }}>
-                      Следите за вашими инвестициями и доходностью
-                    </p>
-                    <div className="text-sm px-6 py-3 rounded-xl inline-block" style={{
-                      backgroundColor: isDark ? 'rgba(255, 200, 80, 0.2)' : 'rgba(255, 200, 80, 0.1)',
-                      color: isDark ? '#FFC850' : '#143C50'
-                    }}>
-                      🚧 В разработке - доступно после первых инвестиций
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-3xl md:text-4xl mb-4" style={{ 
-                      color: isDark ? '#FFC850' : '#143C50',
-                      fontWeight: 700
-                    }}>
-                      Подключите кошелек
-                    </h2>
-                    <p className="text-lg" style={{ 
-                      color: isDark ? '#FFFAF0' : '#143C50',
-                      opacity: 0.8
-                    }}>
-                      Для доступа к dashboard необходимо подключить Web3 кошелек
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
+            <InvestorDashboard walletAddress={walletAddress} isDark={isDark} />
           )}
 
           {/* Profile Section */}
@@ -219,6 +195,7 @@ export default function App() {
             <ProfilePage
               walletAddress={walletAddress}
               onBack={() => setActiveTab('home')}
+              isDark={isDark}
             />
           )}
 
@@ -243,10 +220,13 @@ export default function App() {
               <div className="space-y-6">
                 {[
                   { quarter: 'Q4 2025', title: 'Запуск платформы', status: 'completed', items: ['Создание Web3 платформы', 'Подключение MetaMask', 'Дизайн и UI/UX'] },
-                  { quarter: 'Декабрь 2025 - Январь 2026', title: 'Сбор средств', status: 'current', items: ['Привлечение 6-7 инвесторов', 'Достижение цели ฿2.8M', 'KYC и AML процедуры'] },
+                  { quarter: 'Декабрь 2025 - Январь 2026', title: 'Сбор средств', status: 'current', items: ['Привлечение инвесторов', 'Достижение цели ฿2.8M', 'KYC и AML процедуры'] },
                   { quarter: 'Январь 2026', title: 'Закрытие раунда', status: 'upcoming', items: ['Завершение сбора средств', 'Начало юридического оформления'] },
                   { quarter: 'Февраль 2026', title: 'Юридическое оформление', status: 'upcoming', items: ['Регистрация долей', 'Подписание договоров', 'Настройка автоматических выплат'] },
                   { quarter: 'Март 2026', title: 'Первые выплаты', status: 'upcoming', items: ['Начало ежемесячных выплат', 'Dashboard с реальными данными', 'Governance голосования'] },
+                  { quarter: 'Июль 2026', title: 'Расширение автопарка', status: 'upcoming', items: ['Увеличение парка до 15 автомобилей', 'Банковское финансирование в Таиланде', 'Масштабирование операций'] },
+                  { quarter: 'Октябрь 2026', title: 'Новые продукты', status: 'upcoming', items: ['Запуск лизинга под 20% годовых', 'Открытие филиала на Пхукете', 'Расширение географии бизнеса'] },
+                  { quarter: '2027', title: 'To be continued...', status: 'upcoming', items: ['Дальнейшее развитие', 'Новые направления', 'Международная экспансия'] },
                 ].map((milestone, index) => (
                   <div key={index} className="rounded-2xl p-6 backdrop-blur-xl border"
                     style={{
@@ -259,15 +239,16 @@ export default function App() {
                     }}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
                         style={{
                           backgroundColor: milestone.status === 'completed' ? '#28B48C' :
-                                         milestone.status === 'current' ? '#FFC850' : 
-                                         isDark ? 'rgba(255, 250, 240, 0.2)' : 'rgba(20, 60, 80, 0.2)',
-                          color: milestone.status === 'upcoming' ? (isDark ? '#FFFAF0' : '#143C50') : '#FFFAF0'
+                                         milestone.status === 'current' ? '#FFC850' :
+                                         isDark ? 'rgba(255, 250, 240, 0.2)' : 'rgba(20, 60, 80, 0.2)'
                         }}
                       >
-                        {milestone.status === 'completed' ? '✓' : milestone.status === 'current' ? '🔄' : '📍'}
+                        {milestone.status === 'completed' && <CheckCircle className="w-6 h-6" style={{ color: '#FFFAF0' }} />}
+                        {milestone.status === 'current' && <RefreshCw className="w-6 h-6" style={{ color: '#FFFAF0' }} />}
+                        {milestone.status === 'upcoming' && <Circle className="w-6 h-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -299,6 +280,22 @@ export default function App() {
                   </div>
                 ))}
               </div>
+
+              {/* Disclaimer */}
+              <div className="mt-8 p-4 rounded-xl text-sm" style={{
+                backgroundColor: isDark ? 'rgba(255, 250, 240, 0.05)' : 'rgba(20, 60, 80, 0.05)',
+                color: isDark ? '#FFFAF0' : '#143C50',
+                opacity: 0.7
+              }}>
+                <div className="flex items-start gap-3 justify-center">
+                  <Scale className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#009696' }} />
+                  <p className="text-left max-w-2xl">
+                    Roadmap носит ориентировочный характер. Сроки и этапы могут корректироваться
+                    в зависимости от рыночных условий, регуляторных требований и бизнес-возможностей.
+                    Компания оставляет за собой право вносить изменения для достижения наилучших результатов.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </main>
@@ -329,10 +326,32 @@ export default function App() {
                 }}>
                   Контакты
                 </h4>
-                <div className="space-y-2 text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  <div>📧 invest@thailandmycar.com</div>
-                  <div>💬 Telegram: @thailandmycar</div>
-                  <div>📱 WhatsApp: +66 XX XXX XXXX</div>
+                <div className="space-y-2 text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                  <a
+                    href="mailto:cloudjasmin8@gmail.com"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
+                  >
+                    📧 cloudjasmin8@gmail.com
+                  </a>
+                  <a
+                    href="https://t.me/+YAG8PnZr-dhiZDM6"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
+                  >
+                    💬 Telegram: @thailandmycar
+                  </a>
+                  <a
+                    href="https://youtube.com/@saturway-123"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
+                  >
+                    📺 YouTube: @saturway-123
+                  </a>
                 </div>
               </div>
             </div>
@@ -365,39 +384,6 @@ export default function App() {
         onSuccess={handleInvestSuccess}
       />
 
-      {/* Support Modal */}
-      <SupportModal
-        isOpen={isSupportModalOpen}
-        onClose={() => setIsSupportModalOpen(false)}
-        isDark={isDark}
-        walletAddress={walletAddress}
-      />
-
-      {/* Floating Support Button */}
-      <button
-        onClick={() => setIsSupportModalOpen(true)}
-        className="fixed bottom-8 right-8 p-4 rounded-full shadow-2xl transition-all hover:scale-110 animate-pulse"
-        style={{
-          background: 'linear-gradient(135deg, #009696 0%, #28B48C 100%)',
-          zIndex: 9999,
-          boxShadow: '0 4px 20px rgba(0, 150, 150, 0.5)',
-        }}
-        title="Поддержка"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="28"
-          height="28"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#FFFAF0"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-      </button>
     </div>
   );
 }

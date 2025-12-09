@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Moon, Sun, Menu, X, Wallet, Car, User } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Moon, Sun, Menu, X, Wallet, Car, User, LogOut, Loader2 } from 'lucide-react';
+import { useAppKit, useAppKitAccount, useDisconnect, useAppKitProvider } from '@reown/appkit/react';
+import { BrowserProvider } from 'ethers';
+import type { Provider } from '@reown/appkit';
+import { api } from '../../services/api';
 
 interface ThailandHeaderProps {
   isDark: boolean;
@@ -10,107 +14,100 @@ interface ThailandHeaderProps {
   onWalletChange: (address: string | null) => void;
 }
 
-export function ThailandHeader({ 
-  isDark, 
-  onToggleTheme, 
-  activeTab, 
+export function ThailandHeader({
+  isDark,
+  onToggleTheme,
+  activeTab,
   onTabChange,
   walletAddress,
-  onWalletChange 
+  onWalletChange
 }: ThailandHeaderProps) {
-  const [isConnecting, setIsConnecting] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSigningMessage, setIsSigningMessage] = useState(false);
 
-  // Check if wallet is already connected
-  useEffect(() => {
-    checkIfWalletIsConnected();
-  }, []);
+  // Reown AppKit hooks
+  const { open } = useAppKit();
+  const { address, isConnected } = useAppKitAccount();
+  const { disconnect } = useDisconnect();
+  const { walletProvider } = useAppKitProvider<Provider>('eip155');
 
-  const checkIfWalletIsConnected = async () => {
+  // Sign message with wallet
+  const signMessageWithWallet = useCallback(async (message: string): Promise<string | null> => {
+    if (!walletProvider || !address) return null;
+
     try {
-      // @ts-ignore
-      const { ethereum } = window;
-      
-      if (!ethereum) {
-        console.log('Make sure you have MetaMask installed!');
-        return;
-      }
-
-      const accounts = await ethereum.request({ method: 'eth_accounts' });
-
-      if (accounts.length !== 0) {
-        const account = accounts[0];
-        onWalletChange(account);
-      }
+      const provider = new BrowserProvider(walletProvider);
+      const signer = await provider.getSigner();
+      const signature = await signer.signMessage(message);
+      return signature;
     } catch (error) {
-      console.log(error);
+      console.error('Failed to sign message:', error);
+      return null;
     }
-  };
+  }, [walletProvider, address]);
 
-  // Listen for account changes
+  // Sync Web3Modal state with parent component
   useEffect(() => {
-    // @ts-ignore
-    if (window.ethereum) {
-      // @ts-ignore
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          onWalletChange(accounts[0]);
-        } else {
+    const syncWallet = async () => {
+      if (isConnected && address) {
+        // Register wallet with backend and get auth token
+        if (!api.getToken()) {
+          try {
+            setIsSigningMessage(true);
+
+            // Step 1: Get nonce from server
+            const nonceResponse = await api.getWalletNonce(address);
+            if (nonceResponse.error || !nonceResponse.data?.message) {
+              console.error('Failed to get nonce:', nonceResponse.error);
+              // Fallback to connect without signature
+              const response = await api.connectWallet(address);
+              if (response.data?.token) {
+                api.setToken(response.data.token);
+              }
+            } else {
+              // Step 2: Sign the message
+              const signature = await signMessageWithWallet(nonceResponse.data.message);
+
+              // Step 3: Connect with signature (or without if signing failed/cancelled)
+              const response = await api.connectWallet(address, signature || undefined);
+              if (response.data?.token) {
+                api.setToken(response.data.token);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to register wallet:', error);
+          } finally {
+            setIsSigningMessage(false);
+          }
+        }
+        onWalletChange(address);
+      } else {
+        if (walletAddress) {
+          api.clearToken();
           onWalletChange(null);
         }
-      };
-
-      // @ts-ignore
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-
-      // @ts-ignore
-      window.ethereum.on('chainChanged', () => {
-        // Reload page when chain changes
-        window.location.reload();
-      });
-
-      // Cleanup
-      return () => {
-        // @ts-ignore
-        if (window.ethereum.removeListener) {
-          // @ts-ignore
-          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        }
-      };
-    }
-  }, []);
-
-  const connectWallet = async () => {
-    try {
-      setIsConnecting(true);
-      
-      // @ts-ignore
-      const { ethereum } = window;
-
-      if (!ethereum) {
-        alert('Please install MetaMask or another Web3 wallet!');
-        setIsConnecting(false);
-        return;
       }
+    };
 
-      const accounts = await ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
+    syncWallet();
+  }, [isConnected, address, signMessageWithWallet]);
 
-      onWalletChange(accounts[0]);
-      setIsConnecting(false);
-    } catch (error) {
-      console.log(error);
-      setIsConnecting(false);
-    }
+  const connectWallet = () => {
+    open();
   };
 
   const disconnectWallet = () => {
+    disconnect();
+    api.clearToken();
     onWalletChange(null);
   };
 
-  const formatAddress = (address: string) => {
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  const formatAddress = (addr: string) => {
+    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+  };
+
+  const formatAddressShort = (addr: string) => {
+    return `${addr.substring(0, 4)}..${addr.substring(addr.length - 3)}`;
   };
 
   const navItems = [
@@ -118,8 +115,8 @@ export function ThailandHeader({
     { id: 'about', label: 'О проекте' },
     { id: 'invest', label: 'Инвестиции' },
     { id: 'dashboard', label: 'Dashboard' },
-    { id: 'profile', label: 'Профиль' },
-    { id: 'roadmap', label: 'Roadmap' }
+    { id: 'roadmap', label: 'Roadmap' },
+    ...(walletAddress ? [{ id: 'profile', label: 'Профиль' }] : [])
   ];
 
   return (
@@ -139,14 +136,14 @@ export function ThailandHeader({
               <Car className="w-6 h-6" style={{ color: '#FFFAF0' }} />
             </div>
             <div>
-              <div className="text-xl" style={{ 
+              <div className="text-xl" style={{
                 color: isDark ? '#FFC850' : '#143C50',
                 fontWeight: 700,
                 lineHeight: 1
               }}>
                 Thailand My Car
               </div>
-              <div className="text-xs" style={{ 
+              <div className="text-xs" style={{
                 color: isDark ? '#FFFAF0' : '#143C50',
                 opacity: 0.7
               }}>
@@ -163,7 +160,7 @@ export function ThailandHeader({
                 onClick={() => onTabChange(item.id)}
                 className="px-4 py-2 rounded-xl transition-all duration-300"
                 style={{
-                  color: activeTab === item.id 
+                  color: activeTab === item.id
                     ? (isDark ? '#FFC850' : '#009696')
                     : (isDark ? '#FFFAF0' : '#143C50'),
                   backgroundColor: activeTab === item.id
@@ -196,12 +193,23 @@ export function ThailandHeader({
             </button>
 
             {/* Connect Wallet Button */}
-            {walletAddress ? (
-              <div className="hidden md:flex items-center gap-2">
-                {/* Profile Button */}
+            {isSigningMessage ? (
+              <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-xl"
+                style={{
+                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
+                  color: '#FFFAF0',
+                  fontWeight: 600
+                }}
+              >
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="hidden sm:inline">Подписание...</span>
+              </div>
+            ) : walletAddress ? (
+              <div className="flex items-center gap-1 md:gap-2">
+                {/* Profile Button - hidden on very small screens */}
                 <button
                   onClick={() => onTabChange('profile')}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+                  className="hidden sm:flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 hover:scale-105"
                   style={{
                     backgroundColor: activeTab === 'profile'
                       ? (isDark ? 'rgba(255, 200, 80, 0.2)' : 'rgba(0, 150, 150, 0.2)')
@@ -213,25 +221,38 @@ export function ThailandHeader({
                 >
                   <User className="w-4 h-4" />
                 </button>
-                {/* Wallet Button */}
+                {/* Wallet Address Display */}
                 <button
-                  onClick={disconnectWallet}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+                  onClick={() => open({ view: 'Account' })}
+                  className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-2.5 rounded-xl transition-all hover:opacity-90"
                   style={{
                     background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
                     color: '#FFFAF0',
-                    fontWeight: 600
+                    fontWeight: 600,
+                    fontSize: '0.85rem'
                   }}
                 >
                   <Wallet className="w-4 h-4" />
-                  <span>{formatAddress(walletAddress)}</span>
+                  <span className="sm:hidden">{formatAddressShort(walletAddress)}</span>
+                  <span className="hidden sm:inline">{formatAddress(walletAddress)}</span>
+                </button>
+                {/* Disconnect Button */}
+                <button
+                  onClick={disconnectWallet}
+                  className="flex items-center justify-center p-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(255, 100, 100, 0.2)' : 'rgba(200, 50, 50, 0.1)',
+                    color: '#ff6b6b'
+                  }}
+                  title="Отключить кошелек"
+                >
+                  <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
               <button
                 onClick={connectWallet}
-                disabled={isConnecting}
-                className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-xl transition-all duration-300 hover:scale-105"
                 style={{
                   background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
                   color: '#FFFAF0',
@@ -239,7 +260,7 @@ export function ThailandHeader({
                 }}
               >
                 <Wallet className="w-4 h-4" />
-                <span>{isConnecting ? 'Подключение...' : 'Connect Wallet'}</span>
+                <span>Connect</span>
               </button>
             )}
 
@@ -277,7 +298,7 @@ export function ThailandHeader({
                   }}
                   className="px-4 py-3 rounded-xl text-left transition-all duration-300"
                   style={{
-                    color: activeTab === item.id 
+                    color: activeTab === item.id
                       ? (isDark ? '#FFC850' : '#009696')
                       : (isDark ? '#FFFAF0' : '#143C50'),
                     backgroundColor: activeTab === item.id
@@ -292,9 +313,56 @@ export function ThailandHeader({
             </nav>
 
             {/* Mobile Wallet Button */}
-            {walletAddress ? (
+            {isSigningMessage ? (
+              <div className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl"
+                style={{
+                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
+                  color: '#FFFAF0',
+                  fontWeight: 600
+                }}
+              >
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Подписание...</span>
+              </div>
+            ) : walletAddress ? (
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    open({ view: 'Account' });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl"
+                  style={{
+                    background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
+                    color: '#FFFAF0',
+                    fontWeight: 600
+                  }}
+                >
+                  <Wallet className="w-4 h-4" />
+                  <span>{formatAddress(walletAddress)}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    disconnectWallet();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(255, 100, 100, 0.2)' : 'rgba(200, 50, 50, 0.1)',
+                    color: '#ff6b6b',
+                    fontWeight: 600
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Отключить</span>
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={disconnectWallet}
+                onClick={() => {
+                  connectWallet();
+                  setMobileMenuOpen(false);
+                }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl"
                 style={{
                   background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
@@ -303,21 +371,7 @@ export function ThailandHeader({
                 }}
               >
                 <Wallet className="w-4 h-4" />
-                <span>{formatAddress(walletAddress)}</span>
-              </button>
-            ) : (
-              <button
-                onClick={connectWallet}
-                disabled={isConnecting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl disabled:opacity-50"
-                style={{
-                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
-                  color: '#FFFAF0',
-                  fontWeight: 600
-                }}
-              >
-                <Wallet className="w-4 h-4" />
-                <span>{isConnecting ? 'Подключение...' : 'Connect Wallet'}</span>
+                <span>Подключить кошелек</span>
               </button>
             )}
           </div>

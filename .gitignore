@@ -53,6 +53,11 @@ src/assets/optimized/
 *.tar.gz
 WORK_SUMMARY.md
 
+# Work reports (contain internal info)
+WORK_REPORT_*.md
+BUG_REPORT_*.md
+*_ANALYSIS_REPORT.md
+
 # Landing build artifacts (handled by landing/.gitignore)
 landing/node_modules/
 landing/build/

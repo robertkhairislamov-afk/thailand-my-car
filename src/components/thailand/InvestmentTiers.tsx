@@ -324,7 +324,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
               backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)',
               color: '#009696'
             }}>
-              {settings.platform_wallet}
+              {settings.platform_wallet ? settings.platform_wallet.slice(0, -4) + '****' : ''}
             </code>
             <p className="text-sm mt-4 opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
               💡 Принимаем: <strong>USDT, USDC</strong> на Binance Smart Chain (BSC) •

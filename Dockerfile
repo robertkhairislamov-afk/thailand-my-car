@@ -23,8 +23,8 @@ WORKDIR /app/platform
 # Copy platform package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install to allow new packages)
+RUN npm install --legacy-peer-deps
 
 # Copy platform source code
 COPY . .
@@ -32,8 +32,11 @@ COPY . .
 # Remove landing folder (already built separately)
 RUN rm -rf landing
 
-# Build the platform
+# Build the platform (mainnet)
 RUN npm run build
+
+# Build the platform (testnet)
+RUN npx vite build --config vite.config.testnet.ts
 
 # Production stage
 FROM nginx:alpine
@@ -43,6 +46,9 @@ COPY --from=landing-builder /app/landing/build /usr/share/nginx/html
 
 # Copy platform built files to /thailand-my-car
 COPY --from=platform-builder /app/platform/build /usr/share/nginx/html/thailand-my-car
+
+# Copy testnet built files to /thailand-my-car_testnet
+COPY --from=platform-builder /app/platform/build-testnet /usr/share/nginx/html/thailand-my-car_testnet
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf

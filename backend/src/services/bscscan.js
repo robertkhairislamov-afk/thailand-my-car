@@ -3,23 +3,64 @@
  * Verifies that TX hash is real and matches claimed investment
  */
 
-const BSCSCAN_API_URL = 'https://api.bscscan.com/api';
 const BSCSCAN_API_KEY = process.env.BSCSCAN_API_KEY || '';
+
+// Direct RPC URLs for mainnet and testnet (more reliable than BSCScan API)
+const RPC_URLS = {
+  mainnet: 'https://bsc-dataseed.binance.org/',
+  testnet: 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+};
+
+// BSCScan API URLs (V2 compatible)
+const BSCSCAN_API_URLS = {
+  mainnet: 'https://api.bscscan.com/api',
+  testnet: 'https://api-testnet.bscscan.com/api'
+};
 
 // Known USDT/USDC contract addresses on BSC
 const STABLECOIN_CONTRACTS = {
-  usdt: '0x55d398326f99059ff775485246999027b3197955', // BSC-USD (USDT)
-  usdc: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'  // USD Coin (USDC)
+  mainnet: {
+    usdt: '0x55d398326f99059ff775485246999027b3197955', // BSC-USD (USDT)
+    usdc: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'  // USD Coin (USDC)
+  },
+  testnet: {
+    usdt: '0x337610d27c682e347c9cd60bd4b3b107c9d34ddd', // Test USDT on BSC Testnet
+    usdc: '0x64544969ed7ebf5f083679233325356ebe738930'  // Test USDC on BSC Testnet
+  }
 };
 
+function getRpcUrl(network = 'mainnet') {
+  return RPC_URLS[network] || RPC_URLS.mainnet;
+}
+
+function getApiUrl(network = 'mainnet') {
+  return BSCSCAN_API_URLS[network] || BSCSCAN_API_URLS.mainnet;
+}
+
 /**
- * Get transaction details from BSCScan
+ * Make JSON-RPC call to BSC node
  */
-async function getTransaction(txHash) {
+async function rpcCall(method, params, network = 'mainnet') {
+  const rpcUrl = getRpcUrl(network);
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method,
+      params
+    })
+  });
+  return response.json();
+}
+
+/**
+ * Get transaction details from BSC RPC
+ */
+async function getTransaction(txHash, network = 'mainnet') {
   try {
-    const url = `${BSCSCAN_API_URL}?module=proxy&action=eth_getTransactionByHash&txhash=${txHash}&apikey=${BSCSCAN_API_KEY}`;
-    const response = await fetch(url);
-    const data = await response.json();
+    const data = await rpcCall('eth_getTransactionByHash', [txHash], network);
 
     if (data.result && data.result.hash) {
       return {
@@ -30,19 +71,17 @@ async function getTransaction(txHash) {
 
     return { success: false, error: 'Transaction not found' };
   } catch (error) {
-    console.error('BSCScan getTransaction error:', error);
-    return { success: false, error: 'BSCScan API error' };
+    console.error('RPC getTransaction error:', error);
+    return { success: false, error: 'RPC error' };
   }
 }
 
 /**
  * Get transaction receipt (for confirmation status)
  */
-async function getTransactionReceipt(txHash) {
+async function getTransactionReceipt(txHash, network = 'mainnet') {
   try {
-    const url = `${BSCSCAN_API_URL}?module=proxy&action=eth_getTransactionReceipt&txhash=${txHash}&apikey=${BSCSCAN_API_KEY}`;
-    const response = await fetch(url);
-    const data = await response.json();
+    const data = await rpcCall('eth_getTransactionReceipt', [txHash], network);
 
     if (data.result && data.result.transactionHash) {
       return {
@@ -54,18 +93,20 @@ async function getTransactionReceipt(txHash) {
 
     return { success: false, error: 'Receipt not found' };
   } catch (error) {
-    console.error('BSCScan getTransactionReceipt error:', error);
-    return { success: false, error: 'BSCScan API error' };
+    console.error('RPC getTransactionReceipt error:', error);
+    return { success: false, error: 'RPC error' };
   }
 }
 
 /**
  * Get BEP-20 token transfers for a transaction
  */
-async function getTokenTransfers(txHash) {
+async function getTokenTransfers(txHash, network = 'mainnet') {
   try {
+    const apiUrl = getApiUrl(network);
+
     // First get the block number from the transaction
-    const txResult = await getTransaction(txHash);
+    const txResult = await getTransaction(txHash, network);
     if (!txResult.success) {
       return txResult;
     }
@@ -73,7 +114,7 @@ async function getTokenTransfers(txHash) {
     const blockNumber = parseInt(txResult.tx.blockNumber, 16);
 
     // Get token transfers in this transaction
-    const url = `${BSCSCAN_API_URL}?module=account&action=tokentx&startblock=${blockNumber}&endblock=${blockNumber}&sort=asc&apikey=${BSCSCAN_API_KEY}`;
+    const url = `${apiUrl}?module=account&action=tokentx&startblock=${blockNumber}&endblock=${blockNumber}&sort=asc&apikey=${BSCSCAN_API_KEY}`;
     const response = await fetch(url);
     const data = await response.json();
 
@@ -99,8 +140,9 @@ async function getTokenTransfers(txHash) {
  * @param {string} expectedRecipient - Expected recipient wallet address
  * @param {number} expectedAmount - Expected amount in USD (with 18 decimals for USDT on BSC)
  * @param {number} tolerance - Amount tolerance percentage (default 1%)
+ * @param {string} network - 'mainnet' or 'testnet'
  */
-async function verifyStablecoinTransfer(txHash, expectedRecipient, expectedAmount, tolerance = 1) {
+async function verifyStablecoinTransfer(txHash, expectedRecipient, expectedAmount, tolerance = 1, network = 'mainnet') {
   try {
     // Validate TX hash format
     if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
@@ -112,13 +154,13 @@ async function verifyStablecoinTransfer(txHash, expectedRecipient, expectedAmoun
     }
 
     // Check if transaction exists and is confirmed
-    const receiptResult = await getTransactionReceipt(txHash);
+    const receiptResult = await getTransactionReceipt(txHash, network);
     if (!receiptResult.success) {
       return {
         success: true,
         verified: false,
         status: 'not_found',
-        error: 'Transaction not found on BSC'
+        error: `Transaction not found on BSC ${network}`
       };
     }
 
@@ -131,8 +173,21 @@ async function verifyStablecoinTransfer(txHash, expectedRecipient, expectedAmoun
       };
     }
 
+    // For testnet: simplified verification - just check TX exists and succeeded
+    if (network === 'testnet') {
+      return {
+        success: true,
+        verified: true,
+        status: 'verified_testnet',
+        details: {
+          note: 'Testnet verification - TX exists and confirmed',
+          txHash: txHash
+        }
+      };
+    }
+
     // Get token transfers
-    const transfersResult = await getTokenTransfers(txHash);
+    const transfersResult = await getTokenTransfers(txHash, network);
     if (!transfersResult.success) {
       return {
         success: true,
@@ -143,11 +198,12 @@ async function verifyStablecoinTransfer(txHash, expectedRecipient, expectedAmoun
     }
 
     const normalizedRecipient = expectedRecipient.toLowerCase();
+    const networkContracts = STABLECOIN_CONTRACTS[network] || STABLECOIN_CONTRACTS.mainnet;
 
     // Find a matching USDT/USDC transfer to our wallet
     for (const transfer of transfersResult.transfers) {
       const contractAddress = transfer.contractAddress.toLowerCase();
-      const isStablecoin = Object.values(STABLECOIN_CONTRACTS).includes(contractAddress);
+      const isStablecoin = Object.values(networkContracts).includes(contractAddress);
 
       if (!isStablecoin) continue;
 

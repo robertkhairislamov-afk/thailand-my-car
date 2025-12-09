@@ -1,5 +1,6 @@
-import { Car, TrendingUp, Users, MapPin, Shield, BarChart3 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { useState } from 'react';
+import { Car, TrendingUp, Users, MapPin, Shield, BarChart3, ChevronDown, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import toyotaImage1 from 'figma:asset/5ced44ff814542adbb7d542e23cd5e996dbff908.png';
 import toyotaImage2 from 'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png';
@@ -9,6 +10,8 @@ interface AboutProjectProps {
 }
 
 export function AboutProject({ isDark }: AboutProjectProps) {
+  const [expandedFeature, setExpandedFeature] = useState<number | null>(null);
+
   const stats = [
     { icon: Car, label: 'Автомобилей', value: '9', subtitle: 'Toyota в автопарке' },
     { icon: TrendingUp, label: 'Ежемесячный доход', value: '180k+', subtitle: '฿ стабильный поток' },
@@ -26,7 +29,16 @@ export function AboutProject({ isDark }: AboutProjectProps) {
     {
       icon: Shield,
       title: 'Страхование',
-      description: 'Все автомобили застрахованы по полной программе КАСКО'
+      description: 'Полная страховка Type 1 (ชั้น 1) на авто и пассажиров',
+      expandable: true,
+      expandedDetails: [
+        'Полное покрытие ущерба автомобиля',
+        'Угон и злоумышленные действия',
+        'Стихийные бедствия (наводнение, пожар)',
+        'Медицинские расходы водителя и пассажиров',
+        'Ответственность перед третьими лицами',
+        'Эвакуация и помощь на дороге 24/7'
+      ]
     },
     {
       icon: BarChart3,
@@ -174,6 +186,9 @@ export function AboutProject({ isDark }: AboutProjectProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
         {features.map((feature, index) => {
           const Icon = feature.icon;
+          const isExpanded = expandedFeature === index;
+          const isExpandable = 'expandable' in feature && feature.expandable;
+
           return (
             <motion.div
               key={index}
@@ -181,20 +196,33 @@ export function AboutProject({ isDark }: AboutProjectProps) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="rounded-2xl p-6 backdrop-blur-xl border"
+              className={`rounded-2xl p-6 backdrop-blur-xl border ${isExpandable ? 'cursor-pointer' : ''}`}
               style={{
-                background: isDark 
+                background: isDark
                   ? 'linear-gradient(135deg, rgba(26, 78, 100, 0.6) 0%, rgba(20, 60, 80, 0.4) 100%)'
                   : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 250, 240, 0.7) 100%)',
-                borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
+                borderColor: isExpanded
+                  ? '#009696'
+                  : (isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)')
               }}
+              onClick={() => isExpandable && setExpandedFeature(isExpanded ? null : index)}
             >
-              <div className="p-3 rounded-xl inline-block mb-4" style={{
-                background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)'
-              }}>
-                <Icon className="w-6 h-6" style={{ color: '#FFFAF0' }} />
+              <div className="flex items-start justify-between">
+                <div className="p-3 rounded-xl inline-block mb-4" style={{
+                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)'
+                }}>
+                  <Icon className="w-6 h-6" style={{ color: '#FFFAF0' }} />
+                </div>
+                {isExpandable && (
+                  <motion.div
+                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <ChevronDown className="w-5 h-5" style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.6 }} />
+                  </motion.div>
+                )}
               </div>
-              <h4 className="text-xl mb-2" style={{ 
+              <h4 className="text-xl mb-2" style={{
                 color: isDark ? '#FFC850' : '#143C50',
                 fontWeight: 600
               }}>
@@ -203,6 +231,32 @@ export function AboutProject({ isDark }: AboutProjectProps) {
               <p className="opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
                 {feature.description}
               </p>
+
+              {/* Expanded Details */}
+              <AnimatePresence>
+                {isExpanded && 'expandedDetails' in feature && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-4 pt-4 space-y-2" style={{
+                      borderTop: `1px solid ${isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'}`
+                    }}>
+                      {(feature as { expandedDetails: string[] }).expandedDetails.map((detail, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <Check className="w-4 h-4 flex-shrink-0" style={{ color: '#28B48C' }} />
+                          <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.9 }}>
+                            {detail}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           );
         })}

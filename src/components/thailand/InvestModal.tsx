@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Copy, Check, Loader2, AlertCircle, Car, Percent, ExternalLink, Plus, Minus, ChevronDown } from 'lucide-react';
+import { X, Copy, Check, Loader2, AlertCircle, Car, Percent, ExternalLink, Plus, Minus, ChevronDown, Wallet, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
+import { bscService, type BalanceInfo, IS_BSC_TESTNET } from '../../services/bsc';
 
 // Agreement Step Component with scroll-to-unlock
 function AgreementStep({
@@ -105,8 +106,12 @@ function AgreementStep({
             <strong>7. Данные:</strong> Согласие на обработку согласно PDPA Таиланда.
           </p>
 
+          <p className="mb-2 opacity-90">
+            <strong>8. Roadmap:</strong> План развития носит ориентировочный характер. Сроки и этапы могут корректироваться в зависимости от рыночных условий и бизнес-возможностей.
+          </p>
+
           <div className="pt-2 mt-2 border-t text-center opacity-50 text-[10px]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-            <p>Версия 1.0 • 28.11.2025 • Thailand My Car, Pattaya</p>
+            <p>Версия 1.1 • 08.12.2025 • Thailand My Car, Pattaya</p>
           </div>
         </div>
 
@@ -124,7 +129,7 @@ function AgreementStep({
 
       {/* Footer - checkbox and button */}
       <div className="space-y-2">
-        <label className={`flex items-center gap-2 ${hasScrolledToEnd ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'}`}>
+        <label className={`flex items-center gap-3 min-h-[44px] ${hasScrolledToEnd ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'}`}>
           <input
             type="checkbox"
             checked={agreeTerms}
@@ -132,11 +137,11 @@ function AgreementStep({
             disabled={!hasScrolledToEnd}
             style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
           />
-          <div className="w-5 h-5 rounded flex items-center justify-center transition-all flex-shrink-0"
+          <div className="w-6 h-6 rounded flex items-center justify-center transition-all flex-shrink-0"
             style={{ border: `2px solid ${agreeTerms ? '#28B48C' : isDark ? 'rgba(255,250,240,0.3)' : 'rgba(20,60,80,0.3)'}`, backgroundColor: agreeTerms ? '#28B48C' : 'transparent' }}>
-            {agreeTerms && <Check className="w-3 h-3 text-white" />}
+            {agreeTerms && <Check className="w-4 h-4 text-white" />}
           </div>
-          <span className="text-[11px]" style={{ color: textColor }}>
+          <span className="text-xs" style={{ color: textColor }}>
             {hasScrolledToEnd ? 'Я прочитал и принимаю условия' : 'Прокрутите до конца'}
           </span>
         </label>
@@ -252,6 +257,12 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreeData, setAgreeData] = useState(false);
 
+  // MetaMask payment state
+  const [selectedToken, setSelectedToken] = useState<'USDT' | 'USDC'>('USDT');
+  const [isMetaMaskPayment, setIsMetaMaskPayment] = useState(false);
+  const [balances, setBalances] = useState<BalanceInfo | null>(null);
+  const [loadingBalances, setLoadingBalances] = useState(false);
+
   // Initialize state when modal opens
   useEffect(() => {
     if (isOpen && tier) {
@@ -295,7 +306,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
   const isCarShare = tier.name.toLowerCase().includes('авто');
 
   const amountNum = amount;
-  const exchangeRate = 32.65;
+  const exchangeRate = parseFloat(settings?.exchange_rate_thb_usd || '32.65');
   const amountBaht = amountNum * exchangeRate;
 
   // Step increment based on tier
@@ -346,6 +357,76 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
     }
   };
 
+  // Load user's token balances
+  const loadBalances = async () => {
+    if (!walletAddress) return;
+    setLoadingBalances(true);
+    try {
+      await bscService.ensureBSCNetwork();
+      const bal = await bscService.getBalances(walletAddress);
+      setBalances(bal);
+    } catch (err) {
+      console.error('Failed to load balances:', err);
+    } finally {
+      setLoadingBalances(false);
+    }
+  };
+
+  // Handle MetaMask payment
+  const handleMetaMaskPayment = async () => {
+    if (!settings?.platform_wallet) {
+      setError('Platform wallet not configured');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Ensure BSC network
+      await bscService.ensureBSCNetwork();
+
+      // Transfer tokens
+      const result = selectedToken === 'USDT'
+        ? await bscService.transferUSDT(settings.platform_wallet, amountNum)
+        : await bscService.transferUSDC(settings.platform_wallet, amountNum);
+
+      if (!result.success) {
+        setError(result.error || 'Transaction failed');
+        setLoading(false);
+        return;
+      }
+
+      // Set TX hash and create investment
+      setTxHash(result.txHash || '');
+
+      // Create investment with TX hash
+      const response = await api.createInvestment({
+        tierId: tier.id,
+        walletAddress: walletAddress,
+        amountUsdt: amountNum,
+        txHash: result.txHash,
+        _formStartTime: formStartTime,
+        website: '',
+        network: IS_BSC_TESTNET ? 'testnet' : 'mainnet'
+      });
+
+      if (response.error) {
+        setError(response.error);
+        setLoading(false);
+        return;
+      }
+
+      setStep('success');
+      onSuccess();
+    } catch (err: any) {
+      console.error('MetaMask payment error:', err);
+      setError(err.message || 'Payment failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAmountSubmit = () => {
     if (amountNum < minUsd) {
       setError(`Минимум: $${minUsd.toLocaleString()}`);
@@ -379,7 +460,8 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
         txHash: txHash,
         // Anti-fraud fields
         _formStartTime: formStartTime,
-        website: '' // honeypot - must be empty
+        website: '', // honeypot - must be empty
+        network: IS_BSC_TESTNET ? 'testnet' : 'mainnet'
       });
 
       if (response.error) {
@@ -407,7 +489,8 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
         amountUsdt: amountNum,
         // Anti-fraud fields
         _formStartTime: formStartTime,
-        website: '' // honeypot - must be empty
+        website: '', // honeypot - must be empty
+        network: IS_BSC_TESTNET ? 'testnet' : 'mainnet'
       });
 
       if (response.error) {
@@ -452,7 +535,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="relative rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col"
-            style={{ ...bgStyle, width: '360px', maxWidth: 'calc(100vw - 24px)', maxHeight: '85vh' }}
+            style={{ ...bgStyle, width: '440px', maxWidth: 'calc(100vw - 24px)', maxHeight: '85vh' }}
           >
             {/* Header */}
             <div className="sticky top-0 p-4 border-b flex items-center justify-between z-10"
@@ -557,7 +640,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                             setAmount(newAmount);
                             setError('');
                           }}
-                          className="px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                          className="px-3 py-2 rounded-lg text-xs font-semibold transition-all min-h-[36px]"
                           style={{
                             backgroundColor: isDark ? 'rgba(255, 200, 80, 0.15)' : 'rgba(255, 200, 80, 0.1)',
                             color: '#FFC850',
@@ -640,151 +723,107 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
               {/* Step 2: Transfer Instructions */}
               {step === 'transfer' && (
                 <div className="space-y-4">
+                  {/* Testnet Banner */}
+                  {IS_BSC_TESTNET && (
+                    <div className="p-3 rounded-xl text-center text-sm font-semibold" style={{
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      color: '#FFFFFF'
+                    }}>
+                      ⚠️ TESTNET MODE - Тестовая сеть BSC
+                    </div>
+                  )}
+
                   <div className="text-center">
                     <div className="text-2xl font-bold mb-1" style={{ color: accentColor }}>
                       ${amountNum.toLocaleString()}
                     </div>
                     <div className="text-xs opacity-70" style={{ color: textColor }}>
-                      Переведите на кошелёк
+                      Выберите способ оплаты
                     </div>
                   </div>
 
-                  {/* Network */}
-                  <div className="py-2 px-3 rounded-lg text-center text-xs font-semibold" style={{
-                    backgroundColor: isDark ? 'rgba(255, 200, 80, 0.1)' : 'rgba(255, 200, 80, 0.05)',
-                    color: '#FFC850'
-                  }}>
-                    BSC (BEP-20) • USDT/USDC
-                  </div>
-
-                  {/* Wallet */}
-                  <div className="p-3 rounded-xl" style={{
-                    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.05)'
-                  }}>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-sm p-2 rounded-lg font-mono" style={{
-                        backgroundColor: isDark ? 'rgba(0, 150, 150, 0.1)' : 'rgba(0, 150, 150, 0.05)',
-                        color: '#009696'
-                      }}>
-                        {settings?.platform_wallet
-                          ? `${settings.platform_wallet.slice(0, 8)}...${settings.platform_wallet.slice(-6)}`
-                          : ''}
-                      </code>
-                      <button
-                        onClick={handleCopyWallet}
-                        className="p-2 rounded-lg transition-colors hover:bg-black/10 flex-shrink-0"
-                      >
-                        {copied ? (
-                          <Check className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <Copy className="w-5 h-5" style={{ color: '#009696' }} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  <div className="text-[10px] space-y-1 opacity-70" style={{ color: textColor }}>
-                    <div className="flex items-start gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: '#FFC850' }} />
-                      <span>Только USDT/USDC по сети BSC</span>
-                    </div>
-                    <div className="flex items-start gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: '#FFC850' }} />
-                      <span>Сохраните TX Hash после перевода</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setStep('confirm')}
-                    className="w-full py-3 rounded-xl font-semibold transition-all"
-                    style={{
-                      background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
-                      color: '#FFFAF0'
-                    }}
-                  >
-                    Я перевёл
-                  </button>
-
-                  <button
-                    onClick={() => setStep('amount')}
-                    className="w-full py-2 text-xs opacity-70 hover:opacity-100"
-                    style={{ color: textColor }}
-                  >
-                    ← Назад
-                  </button>
-                </div>
-              )}
-
-              {/* Step 3: Confirm */}
-              {step === 'confirm' && (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="text-sm mb-1" style={{ color: textColor }}>Подтвердите</div>
-                    <div className="text-2xl font-bold" style={{ color: accentColor }}>
-                      ${amountNum.toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs mb-1 opacity-70" style={{ color: textColor }}>
-                      TX Hash
-                    </label>
-                    <input
-                      type="text"
-                      value={txHash}
-                      onChange={(e) => setTxHash(e.target.value)}
-                      placeholder="0x..."
-                      className="w-full px-3 py-3 rounded-xl text-xs border-2 font-mono"
+                  {/* Token Selector */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedToken('USDT')}
+                      className="flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-all"
                       style={{
-                        backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.05)',
-                        borderColor: error ? '#ef4444' : isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)',
-                        color: textColor
+                        backgroundColor: selectedToken === 'USDT'
+                          ? (isDark ? 'rgba(40, 180, 140, 0.3)' : 'rgba(40, 180, 140, 0.2)')
+                          : (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'),
+                        color: selectedToken === 'USDT' ? '#28B48C' : textColor,
+                        border: selectedToken === 'USDT' ? '2px solid #28B48C' : '2px solid transparent'
                       }}
-                    />
-                    <div className="text-[10px] mt-1 opacity-50" style={{ color: textColor }}>
-                      Найти на{' '}
-                      <a href="https://bscscan.com" target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 hover:underline" style={{ color: '#009696' }}>
-                        BSCScan <ExternalLink className="w-2 h-2" />
-                      </a>
-                    </div>
+                    >
+                      USDT
+                    </button>
+                    <button
+                      onClick={() => setSelectedToken('USDC')}
+                      className="flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-all"
+                      style={{
+                        backgroundColor: selectedToken === 'USDC'
+                          ? (isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)')
+                          : (isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'),
+                        color: selectedToken === 'USDC' ? '#009696' : textColor,
+                        border: selectedToken === 'USDC' ? '2px solid #009696' : '2px solid transparent'
+                      }}
+                    >
+                      USDC
+                    </button>
                   </div>
 
+                  {/* Error message */}
                   {error && (
-                    <div className="flex items-center justify-center gap-1 text-red-500 text-xs">
-                      <AlertCircle className="w-3 h-3" />
+                    <div className="p-3 rounded-xl text-sm" style={{
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: '#EF4444'
+                    }}>
                       {error}
                     </div>
                   )}
 
-                  <button
-                    onClick={handleConfirmSubmit}
+                  {/* MetaMask Payment Button */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleMetaMaskPayment}
                     disabled={loading}
-                    className="w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                    className="w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                     style={{
-                      background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
-                      color: '#FFFAF0'
+                      background: 'linear-gradient(135deg, #F6851B 0%, #E2761B 100%)',
+                      color: '#FFFFFF'
                     }}
                   >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                    {loading ? 'Подтверждение...' : 'Подтвердить'}
-                  </button>
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Подтвердите в кошельке...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="w-5 h-5" />
+                        <span>Оплатить через кошелёк</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </motion.button>
+
+                  {/* Bank Transfer Coming Soon */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
+                    <span className="text-xs opacity-50" style={{ color: textColor }}>или</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
+                  </div>
+
+                  <div className="p-4 rounded-xl text-center" style={{
+                    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.05)'
+                  }}>
+                    <div className="text-sm opacity-70" style={{ color: textColor }}>
+                      💳 Оплата по реквизитам — <span style={{ color: accentColor }}>coming soon</span>
+                    </div>
+                  </div>
 
                   <button
-                    onClick={handleSkipTxHash}
-                    disabled={loading}
-                    className="w-full py-2 text-xs rounded-xl border opacity-70 hover:opacity-100"
-                    style={{
-                      borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)',
-                      color: textColor
-                    }}
-                  >
-                    Добавить TX Hash позже
-                  </button>
-
-                  <button
-                    onClick={() => setStep('transfer')}
+                    onClick={() => { setStep('amount'); setError(''); }}
                     className="w-full py-2 text-xs opacity-70 hover:opacity-100"
                     style={{ color: textColor }}
                   >
@@ -793,7 +832,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                 </div>
               )}
 
-              {/* Step 4: Success */}
+              {/* Step 3: Success */}
               {step === 'success' && (
                 <div className="text-center space-y-4">
                   <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center"

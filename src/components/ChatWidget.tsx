@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Minimize2, User, Bot } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { MessageCircle, X, Send, Minimize2, User, Bot, Headphones } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import agentAvatar from 'figma:asset/e1e085ae75a2749b061ca9a2d4be120e5d13174a.png';
+import api from '../services/api';
 
 interface Message {
   id: string;
@@ -37,9 +38,12 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
   const [isRegistered, setIsRegistered] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [unreadCount, setUnreadCount] = useState(0);
-  
+  const [waitingForAdmin, setWaitingForAdmin] = useState(false);
+  const [lastMessageTime, setLastMessageTime] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load chat session from localStorage
   useEffect(() => {
@@ -49,16 +53,17 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
       setMessages(session.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
       setUserName(session.userName);
       setUserEmail(session.userEmail || '');
-      setSessionId(session.id);
+      // Only use session ID if it's a valid UUID format (from backend)
+      if (session.id && session.id.includes('-') && session.id.length === 36) {
+        setSessionId(session.id);
+      }
       setIsRegistered(true);
-      
+
       // Calculate unread messages from agent
       const unread = session.messages.filter(m => m.sender === 'agent' && !m.read).length;
       setUnreadCount(unread);
-    } else {
-      // Generate new session ID
-      setSessionId(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
     }
+    // Don't generate session ID here - it will come from backend on registration
   }, []);
 
   // Auto-scroll to bottom
@@ -75,6 +80,55 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
       saveSession(updatedMessages);
     }
   }, [isOpen, isMinimized]);
+
+  // Poll for admin messages when waiting
+  const pollForMessages = useCallback(async () => {
+    if (!sessionId || !waitingForAdmin) return;
+
+    try {
+      const result = await api.getChatMessages(sessionId, lastMessageTime || undefined);
+      if (result.data?.messages && result.data.messages.length > 0) {
+        const newAdminMsgs = result.data.messages.filter(
+          (m: any) => m.sender === 'admin' && !messages.some(existing => existing.id === m.id)
+        );
+
+        if (newAdminMsgs.length > 0) {
+          const formattedMsgs: Message[] = newAdminMsgs.map((m: any) => ({
+            id: m.id,
+            text: m.message,
+            sender: 'agent' as const,
+            timestamp: new Date(m.created_at),
+            read: isOpen && !isMinimized
+          }));
+
+          const updatedMessages = [...messages, ...formattedMsgs];
+          setMessages(updatedMessages);
+          saveSession(updatedMessages);
+          setLastMessageTime(newAdminMsgs[newAdminMsgs.length - 1].created_at);
+
+          if (!isOpen || isMinimized) {
+            setUnreadCount(prev => prev + newAdminMsgs.length);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Polling error:', error);
+    }
+  }, [sessionId, waitingForAdmin, lastMessageTime, messages, isOpen, isMinimized]);
+
+  // Start/stop polling
+  useEffect(() => {
+    if (waitingForAdmin && sessionId) {
+      pollingRef.current = setInterval(pollForMessages, 5000); // Poll every 5 seconds
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [waitingForAdmin, sessionId, pollForMessages]);
 
   // Save session to localStorage and sync with admin
   const saveSession = (msgs: Message[]) => {
@@ -104,13 +158,86 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
     localStorage.setItem('adminChatMessages', JSON.stringify(adminMessages));
   };
 
+  // Helper: pick random from array
+  const randomPick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+  // Helper: normalize text (remove extra spaces, fix common typos)
+  const normalizeText = (text: string): string => {
+    return text.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+  };
+
+  // Helper: check if text matches patterns (with typo tolerance)
+  const matchesAny = (text: string, patterns: string[]): boolean => {
+    const normalized = normalizeText(text);
+    return patterns.some(p => {
+      if (normalized.includes(p)) return true;
+      const words = normalized.split(' ');
+      return words.some(word => {
+        if (Math.abs(word.length - p.length) > 2) return false;
+        let diff = 0;
+        for (let i = 0; i < Math.min(word.length, p.length); i++) {
+          if (word[i] !== p[i]) diff++;
+        }
+        return (diff + Math.abs(word.length - p.length)) <= 2 && p.length >= 3;
+      });
+    });
+  };
+
+  // Filter: offensive language
+  const isOffensive = (text: string): boolean => {
+    const bad = ['дур','идиот','тупой','тупая','дебил','лох','мудак','сука','бля','хуй','пизд','еба','нахуй','нахер','похуй','ублюд','гавно','говно','мразь','чмо','урод','козел','скам','scam','fuck','shit','bitch','asshole','idiot','stupid'];
+    const n = normalizeText(text);
+    return bad.some(p => n.includes(p));
+  };
+
   // AI Agent responses
   const getAgentResponse = (userMessage: string): string => {
-    const lowerMsg = userMessage.toLowerCase();
+    const lowerMsg = normalizeText(userMessage);
 
-    // Greeting
+    // Check offensive language first
+    if (isOffensive(userMessage)) {
+      return randomPick([
+        'Давайте общаться уважительно 🙏 Чем могу помочь по существу?',
+        'Я здесь, чтобы помочь! Есть вопросы об инвестициях? 😊',
+        'Предлагаю начать сначала 🔄 Какой у вас вопрос о проекте?'
+      ]);
+    }
+
+    // Greeting (with typo tolerance)
+    if (matchesAny(lowerMsg, ['привет','привте','прив','здравствуй','здарова','здорова','добрый','доброе','hello','hi','hey','хай','хей'])) {
+      return randomPick([
+        `Привет, ${userName}! 👋 Рада видеть! Чем могу помочь?`,
+        `Здравствуйте, ${userName}! 😊 Я Мира, ваш помощник. Какие вопросы?`,
+        `Привет! 🌟 Добро пожаловать! О чём хотите узнать?`,
+        `Хей, ${userName}! 👋 Как я могу помочь сегодня?`
+      ]);
+    }
+
+    // How are you
+    if (matchesAny(lowerMsg, ['как дела','как ты','как сама','как жизнь','как оно','что нового','как поживаешь','как делишки','чо как','шо там'])) {
+      return randomPick([
+        `Отлично! 😄 Помогаю инвесторам. А у тебя как?`,
+        `Супер! 🚀 Много интересных вопросов сегодня. Чем помочь?`,
+        `Прекрасно, ${userName}! ☀️ Готова к общению!`,
+        `На позитиве! 🌈 Есть вопросы по инвестициям?`,
+        `Бодрячком! 💪 Чем могу помочь?`,
+        `Всё круто! 😎 Таиланд, солнце... Что интересует?`,
+        `Хорошо! 🌴 А ты как? Интересуешься проектом?`
+      ]);
+    }
+
+    // Who are you
+    if (matchesAny(lowerMsg, ['кто ты','что ты','ты кто','ты бот','ты робот','ты человек','ты живая'])) {
+      return randomPick([
+        `Я Мира - AI-помощник Thailand My Car! 🤖 Знаю всё о проекте!`,
+        `Меня зовут Мира 👩‍💼 Виртуальный консультант 24/7!`,
+        `Я AI-ассистент 🌟 Отвечу на вопросы об инвестициях!`
+      ]);
+    }
+
+    // Greeting original fallback
     if (lowerMsg.match(/привет|здравствуй|hello|hi/)) {
-      return `Привет, ${userName}! 👋 Меня зовут Мира, я помощник Thailand My Car. С удовольствием отвечу на ваши вопросы! 😊`;
+      return `Привет, ${userName}! 👋 Меня зовут Мира. С удовольствием отвечу на вопросы! 😊`;
     }
 
     // Investment questions
@@ -155,7 +282,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
 
     // Cars/fleet
     if (lowerMsg.match(/машин|автомобил|toyota|fleet|парк/)) {
-      return '🚗 Наш автопарк:\n\n🔹 Toyota Fortuner (премиум SUV)\n🔹 Toyota Camry (бизнес седан)\n🔹 Toyota Altis (комфорт класс)\n\nВсе автомобили 2023-2024 года, застрахованы и обслуживаются официально!';
+      return '🚗 Наш автопарк:\n\n🔹 Toyota Fortuner (премиум SUV)\n🔹 Toyota Camry (бизнес седан)\n🔹 Toyota Altis (комфорт класс)\n\nВсе автомобили 2023-2024 года, страховка Type 1 (полная), обслуживание официальное!';
     }
 
     // Location
@@ -164,42 +291,133 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
     }
 
     // Thanks
-    if (lowerMsg.match(/спасибо|благодар|thanks/)) {
-      return 'Всегда пожалуйста! 😊 Если возникут ещё вопросы - пишите!';
+    if (matchesAny(lowerMsg, ['спасибо','благодар','thanks','спс','сяб','thx'])) {
+      return randomPick([
+        'Всегда пожалуйста! 😊 Обращайтесь!',
+        'Рада помочь! 🌟 Ещё вопросы?',
+        'Не за что! 💚 Удачных инвестиций!',
+        'На здоровье! 🙏 Если что - я тут!',
+        'Обращайтесь! 👋 Всегда рада помочь!'
+      ]);
+    }
+
+    // Bye
+    if (matchesAny(lowerMsg, ['пока','до свидания','bye','бай','прощай','увидимся','до связи'])) {
+      return randomPick([
+        `До свидания, ${userName}! 👋 Возвращайтесь!`,
+        'Пока! 🌟 Буду рада пообщаться снова!',
+        'Всего доброго! 💚 Удачи!',
+        `До связи, ${userName}! 🚀`
+      ]);
+    }
+
+    // Yes/agree
+    if (matchesAny(lowerMsg, ['да','ага','угу','yes','конечно','давай','хочу','интересно','расскажи'])) {
+      return randomPick([
+        'Отлично! 🎯 Что именно хотите узнать подробнее?',
+        'Супер! Какой аспект интересует - доходность, риски или процесс?',
+        'Здорово! 🚀 Спрашивайте - отвечу на всё!'
+      ]);
+    }
+
+    // No
+    if (matchesAny(lowerMsg, ['нет','неа','no','не надо','не хочу']) && lowerMsg.length < 15) {
+      return randomPick([
+        'Понял! Если передумаете - я здесь 😊',
+        'Хорошо! Может, есть другие вопросы?',
+        'Без проблем! Обращайтесь, если что 👋'
+      ]);
     }
 
     // Default response
-    const defaultResponses = [
-      'Интересный вопрос! Позвольте соединить вас с менеджером для детальной консультации. Оставьте свой email/Telegram?',
-      'Спасибо за вопрос! Наш специалист свяжется с вами в течение часа для подробного ответа. Как с вами связаться?',
-      'Хороший вопрос! Рекомендую изучить раздел "О проекте" на сайте. Или могу соединить с менеджером?'
-    ];
-
-    return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
+    return randomPick([
+      'Интересный вопрос! 🤔 Позвольте соединить с менеджером. Как связаться?',
+      'Хм, уточню! Оставьте email или Telegram - ответим в течение часа 📨',
+      `${userName}, отличный вопрос! Для детального ответа лучше связаться с менеджером.`,
+      'Спасибо за вопрос! Рекомендую раздел "О проекте" или могу позвать менеджера?',
+      'Это требует детального ответа! 📋 Как с вами связаться?'
+    ]);
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (userName.trim()) {
       setIsRegistered(true);
-      
+
+      // Create session in backend
+      try {
+        const result = await api.createChatSession({
+          userName: userName.trim(),
+          userEmail: userEmail || undefined
+        });
+
+        if (result.data?.session) {
+          setSessionId(result.data.session.id);
+        }
+      } catch (error) {
+        console.error('Failed to create session:', error);
+      }
+
       // Welcome message
       const welcomeMsg: Message = {
         id: `msg_${Date.now()}`,
-        text: `Здравствуйте, ${userName}! 👋\n\nМеня зовут Мира, я помощник Thailand My Car.\n\nС радостью отвечу на ваши вопросы об инвестициях, доходности, криптоплатежах и нашем автопарке!\n\nЧем могу помочь? 😊`,
+        text: `Здравствуйте, ${userName}! 👋\n\nМеня зовут Мира, я помощник Thailand My Car.\n\nС радостью отвечу на ваши вопросы об инвестициях, доходности, криптоплатежах и нашем автопарке!\n\nЕсли хотите связаться с менеджером - нажмите кнопку 🎧 внизу.\n\nЧем могу помочь? 😊`,
         sender: 'agent',
         timestamp: new Date(),
         read: true
       };
-      
+
       const newMessages = [welcomeMsg];
       setMessages(newMessages);
       saveSession(newMessages);
-      
+
       setTimeout(() => inputRef.current?.focus(), 300);
     }
   };
 
-  const handleSendMessage = () => {
+  // Request admin/manager
+  const handleRequestAdmin = async () => {
+    if (!sessionId) return;
+
+    try {
+      await api.requestAdmin(sessionId);
+      setWaitingForAdmin(true);
+
+      const systemMsg: Message = {
+        id: `msg_${Date.now()}`,
+        text: '🎧 Запрос отправлен! Менеджер скоро подключится к чату. Пожалуйста, подождите...',
+        sender: 'agent',
+        timestamp: new Date(),
+        read: true
+      };
+
+      const updatedMessages = [...messages, systemMsg];
+      setMessages(updatedMessages);
+      saveSession(updatedMessages);
+    } catch (error) {
+      console.error('Failed to request admin:', error);
+    }
+  };
+
+  // End chat session
+  const handleEndChat = () => {
+    // Clear local state
+    setMessages([]);
+    setSessionId('');
+    setIsRegistered(false);
+    setUserName('');
+    setUserEmail('');
+    setWaitingForAdmin(false);
+    setUnreadCount(0);
+
+    // Clear localStorage
+    localStorage.removeItem('chatSession');
+    localStorage.removeItem('adminChatMessages');
+
+    // Close chat window
+    setIsOpen(false);
+  };
+
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
     const userMsg: Message = {
@@ -212,14 +430,35 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
 
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    const messageText = inputValue;
     setInputValue('');
+
+    // Save user message to backend
+    if (sessionId) {
+      try {
+        await api.sendChatMessage({
+          sessionId,
+          sender: 'user',
+          senderName: userName,
+          message: messageText
+        });
+      } catch (error) {
+        console.error('Failed to save message:', error);
+      }
+    }
+
+    // If waiting for admin, don't generate AI response
+    if (waitingForAdmin) {
+      saveSession(newMessages);
+      return;
+    }
 
     // Show typing indicator
     setIsTyping(true);
 
     // Simulate agent response delay
-    setTimeout(() => {
-      const agentResponse = getAgentResponse(inputValue);
+    setTimeout(async () => {
+      const agentResponse = getAgentResponse(messageText);
       const agentMsg: Message = {
         id: `msg_${Date.now() + 1}`,
         text: agentResponse,
@@ -232,6 +471,20 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
       setMessages(updatedMessages);
       saveSession(updatedMessages);
       setIsTyping(false);
+
+      // Save AI response to backend
+      if (sessionId) {
+        try {
+          await api.sendChatMessage({
+            sessionId,
+            sender: 'agent',
+            senderName: 'Мира',
+            message: agentResponse
+          });
+        } catch (error) {
+          console.error('Failed to save AI response:', error);
+        }
+      }
 
       if (!isOpen || isMinimized) {
         setUnreadCount(prev => prev + 1);
@@ -298,6 +551,20 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {isRegistered && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('Завершить чат? История будет удалена.')) {
+                        handleEndChat();
+                      }
+                    }}
+                    className="px-2 py-1 text-xs hover:bg-white/20 rounded transition-colors border border-white/30"
+                    title="Завершить чат"
+                  >
+                    Завершить
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -504,12 +771,40 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                     </div>
 
                     {/* Input */}
-                    <div 
+                    <div
                       className="p-4 border-t"
                       style={{
                         borderColor: isDark ? 'rgba(0,150,150,0.2)' : 'rgba(0,150,150,0.1)'
                       }}
                     >
+                      {/* Request manager button */}
+                      {!waitingForAdmin && (
+                        <button
+                          onClick={handleRequestAdmin}
+                          className="w-full mb-3 py-2 px-4 rounded-xl text-sm flex items-center justify-center gap-2 transition-all hover:shadow-md"
+                          style={{
+                            background: isDark ? 'rgba(255,200,80,0.15)' : 'rgba(255,200,80,0.2)',
+                            color: isDark ? '#FFC850' : '#B8860B',
+                            border: `1px solid ${isDark ? 'rgba(255,200,80,0.3)' : 'rgba(255,200,80,0.4)'}`
+                          }}
+                        >
+                          <Headphones className="w-4 h-4" />
+                          Связаться с менеджером
+                        </button>
+                      )}
+
+                      {waitingForAdmin && (
+                        <div
+                          className="mb-3 py-2 px-4 rounded-xl text-sm text-center"
+                          style={{
+                            background: isDark ? 'rgba(40,180,140,0.15)' : 'rgba(40,180,140,0.1)',
+                            color: isDark ? '#28B48C' : '#1a7a5a'
+                          }}
+                        >
+                          ⏳ Ожидание менеджера...
+                        </div>
+                      )}
+
                       <div className="flex gap-2">
                         <input
                           ref={inputRef}
@@ -517,7 +812,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                           value={inputValue}
                           onChange={(e) => setInputValue(e.target.value)}
                           onKeyPress={handleKeyPress}
-                          placeholder="Напишите сообщение..."
+                          placeholder={waitingForAdmin ? "Напишите менеджеру..." : "Напишите сообщение..."}
                           className="flex-1 px-4 py-3 rounded-xl outline-none transition-all"
                           style={{
                             background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',

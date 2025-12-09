@@ -2,10 +2,26 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { ethers } = require('ethers');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const pool = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { logActivity, getClientIp } = require('../utils/logger');
+
+// In-memory nonce store (for production, use Redis)
+const nonceStore = new Map();
+const NONCE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
+// Clean expired nonces every minute
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, data] of nonceStore.entries()) {
+    if (now - data.createdAt > NONCE_EXPIRY) {
+      nonceStore.delete(key);
+    }
+  }
+}, 60 * 1000);
 
 // Admin login
 router.post('/admin/login', [
@@ -134,8 +150,8 @@ router.post('/admin/change-password', [
   }
 });
 
-// Register user by wallet
-router.post('/wallet/connect', [
+// Get nonce for wallet signature
+router.post('/wallet/nonce', [
   body('walletAddress').matches(/^0x[a-fA-F0-9]{40}$/)
 ], async (req, res) => {
   try {
@@ -146,6 +162,81 @@ router.post('/wallet/connect', [
 
     const { walletAddress } = req.body;
     const lowerAddress = walletAddress.toLowerCase();
+
+    // Generate random nonce
+    const nonce = crypto.randomBytes(32).toString('hex');
+    const message = `Sign this message to connect to Thailand My Car.\n\nNonce: ${nonce}\nTimestamp: ${new Date().toISOString()}`;
+
+    // Store nonce
+    nonceStore.set(lowerAddress, {
+      nonce,
+      message,
+      createdAt: Date.now()
+    });
+
+    res.json({ message, nonce });
+  } catch (error) {
+    console.error('Nonce generation error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Register user by wallet with signature verification
+router.post('/wallet/connect', [
+  body('walletAddress').matches(/^0x[a-fA-F0-9]{40}$/),
+  body('signature').matches(/^0x[a-fA-F0-9]+$/).optional()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { walletAddress, signature } = req.body;
+    const lowerAddress = walletAddress.toLowerCase();
+
+    // Verify signature if provided
+    if (signature) {
+      const storedData = nonceStore.get(lowerAddress);
+
+      if (!storedData) {
+        return res.status(400).json({
+          error: 'No nonce found. Please request a new nonce first.',
+          code: 'NONCE_EXPIRED'
+        });
+      }
+
+      // Check nonce expiry
+      if (Date.now() - storedData.createdAt > NONCE_EXPIRY) {
+        nonceStore.delete(lowerAddress);
+        return res.status(400).json({
+          error: 'Nonce expired. Please request a new one.',
+          code: 'NONCE_EXPIRED'
+        });
+      }
+
+      try {
+        // Verify the signature
+        const recoveredAddress = ethers.verifyMessage(storedData.message, signature);
+
+        if (recoveredAddress.toLowerCase() !== lowerAddress) {
+          console.log(`Signature verification failed: expected ${lowerAddress}, got ${recoveredAddress.toLowerCase()}`);
+          return res.status(401).json({
+            error: 'Invalid signature. Wallet address does not match.',
+            code: 'INVALID_SIGNATURE'
+          });
+        }
+
+        // Clear used nonce
+        nonceStore.delete(lowerAddress);
+      } catch (sigError) {
+        console.error('Signature verification error:', sigError);
+        return res.status(401).json({
+          error: 'Invalid signature format.',
+          code: 'INVALID_SIGNATURE'
+        });
+      }
+    }
 
     // Find or create user
     let result = await pool.query(
@@ -178,7 +269,11 @@ router.post('/wallet/connect', [
       userEmail: null,
       ipAddress: getClientIp(req),
       userAgent: req.headers['user-agent'],
-      details: { walletAddress: lowerAddress, isNewUser: result.command === 'INSERT' }
+      details: {
+        walletAddress: lowerAddress,
+        isNewUser: result.command === 'INSERT',
+        signatureVerified: !!signature
+      }
     });
 
     res.json({

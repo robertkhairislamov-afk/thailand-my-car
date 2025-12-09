@@ -71,15 +71,15 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // Update user profile
 router.put('/', authenticateToken, [
-  body('name').optional().isLength({ max: 255 }),
-  body('email').optional().isEmail().normalizeEmail(),
-  body('telegram').optional().isLength({ max: 100 }),
-  body('whatsapp').optional().isLength({ max: 20 }),
-  body('instagram').optional().isLength({ max: 100 }),
-  body('twitter').optional().isLength({ max: 100 }),
-  body('facebook').optional().isLength({ max: 255 }),
-  body('bio').optional().isLength({ max: 1000 }),
-  body('preferredLanguage').optional().isIn(['ru', 'en', 'th'])
+  body('name').optional({ checkFalsy: true }).isLength({ max: 255 }),
+  body('email').optional({ checkFalsy: true }).isEmail().normalizeEmail(),
+  body('telegram').optional({ checkFalsy: true }).isLength({ max: 100 }),
+  body('whatsapp').optional({ checkFalsy: true }).isLength({ max: 20 }),
+  body('instagram').optional({ checkFalsy: true }).isLength({ max: 100 }),
+  body('twitter').optional({ checkFalsy: true }).isLength({ max: 100 }),
+  body('facebook').optional({ checkFalsy: true }).isLength({ max: 255 }),
+  body('bio').optional({ checkFalsy: true }).isLength({ max: 1000 }),
+  body('preferredLanguage').optional({ checkFalsy: true }).isIn(['ru', 'en', 'th'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

@@ -5,9 +5,10 @@ interface DashboardProps {
   isDark: boolean;
   data?: any;
   loading?: boolean;
+  onNavigate?: (page: string) => void;
 }
 
-export function Dashboard({ isDark, data, loading }: DashboardProps) {
+export function Dashboard({ isDark, data, loading, onNavigate }: DashboardProps) {
   // Use real data from API or defaults for empty state
   const stats = {
     totalRaised: Number(data?.stats?.total_invested || 0),
@@ -15,7 +16,9 @@ export function Dashboard({ isDark, data, loading }: DashboardProps) {
     monthlyRevenue: Number(data?.stats?.monthly_revenue || 0),
     previousMonthRevenue: Number(data?.stats?.previous_month_revenue || 0),
     activeInvestors: Number(data?.stats?.active_investors || 0),
-    totalInvestors: 7, // Max investors
+    carInvestors: Number(data?.stats?.car_investors || 0),
+    stakingInvestors: Number(data?.stats?.staking_investors || 0),
+    maxCarInvestors: 7, // Max car share investors
     roiPaidOut: Number(data?.stats?.roi_paid || 0),
     pendingApprovals: Number(data?.stats?.pending_count || 0)
   };
@@ -72,7 +75,7 @@ export function Dashboard({ isDark, data, loading }: DashboardProps) {
   }
 
   // Check if we have any data
-  const hasData = stats.totalRaised > 0 || stats.activeInvestors > 0;
+  const hasData = stats.totalRaised > 0 || stats.carInvestors > 0 || stats.stakingInvestors > 0;
 
   return (
     <div className="space-y-8">
@@ -111,8 +114,9 @@ export function Dashboard({ isDark, data, loading }: DashboardProps) {
               У вас {stats.pendingApprovals} инвестиций ожидают подтверждения
             </p>
           </div>
-          <button 
-            className="px-4 py-2 rounded-xl transition-all"
+          <button
+            onClick={() => onNavigate?.('investments')}
+            className="px-4 py-2 rounded-xl transition-all hover:scale-105"
             style={{
               background: '#FFC850',
               color: '#143C50'
@@ -198,17 +202,24 @@ export function Dashboard({ isDark, data, loading }: DashboardProps) {
             <div className="p-3 rounded-xl" style={{ background: 'rgba(93, 217, 209, 0.2)' }}>
               <Users className="w-6 h-6" style={{ color: '#5DD9D1' }} />
             </div>
-            <div className="text-right">
-              <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Лимит</div>
-              <div style={{ color: '#5DD9D1', fontWeight: 600 }}>{stats.totalInvestors} макс</div>
+          </div>
+          <h3 className="text-sm opacity-70 mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Инвесторы</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Доли в авто:</span>
+              <span style={{ color: '#28B48C', fontWeight: 600 }}>
+                {stats.carInvestors}/{stats.maxCarInvestors}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Стейкинг:</span>
+              <span style={{ color: '#5DD9D1', fontWeight: 600 }}>
+                {stats.stakingInvestors}
+              </span>
             </div>
           </div>
-          <h3 className="text-sm opacity-70 mb-1" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Активные инвесторы</h3>
-          <div className="text-3xl mb-1" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 700 }}>
-            {stats.activeInvestors}
-          </div>
-          <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-            {stats.totalInvestors - stats.activeInvestors} слотов доступно
+          <div className="text-xs opacity-50 mt-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+            {stats.maxCarInvestors - stats.carInvestors} слотов авто доступно
           </div>
         </div>
 

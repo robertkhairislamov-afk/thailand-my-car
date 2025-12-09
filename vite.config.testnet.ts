@@ -5,7 +5,10 @@
 
   export default defineConfig({
     plugins: [react()],
-    base: '/thailand-my-car/',
+    base: '/thailand-my-car_testnet/',
+    define: {
+      'import.meta.env.VITE_BSC_TESTNET': JSON.stringify('true'),
+    },
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -56,7 +59,7 @@
     },
     build: {
       target: 'esnext',
-      outDir: 'build',
+      outDir: 'build-testnet',
     },
     server: {
       port: 3000,

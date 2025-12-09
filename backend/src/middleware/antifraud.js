@@ -6,8 +6,11 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const pool = require('../config/database');
 
-// Secret for integrity hash (should be in env)
-const INTEGRITY_SECRET = process.env.INTEGRITY_SECRET || 'thailand-my-car-integrity-2025';
+// Secret for integrity hash (required in env)
+const INTEGRITY_SECRET = process.env.INTEGRITY_SECRET;
+if (!INTEGRITY_SECRET) {
+  console.error('WARNING: INTEGRITY_SECRET not configured in environment');
+}
 
 /**
  * Rate limiter for investment submissions

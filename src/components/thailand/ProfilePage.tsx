@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User, Mail, Phone, Send, MessageCircle,
+  User, Mail, Send, MessageCircle,
   Instagram, Twitter, Facebook, Wallet,
   Save, Loader2, CheckCircle, AlertCircle,
-  TrendingUp, DollarSign, Clock, ChevronLeft
+  TrendingUp, DollarSign, Clock, ChevronLeft,
+  Percent, ArrowDownCircle, Lock, Unlock, X
 } from 'lucide-react';
+import { api } from '../../services/api';
 
 interface ProfilePageProps {
   walletAddress: string | null;
   onBack: () => void;
+  isDark?: boolean;
 }
 
 interface Profile {
@@ -33,13 +36,38 @@ interface Stats {
   activeInvestments: number;
 }
 
-export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
+interface Investment {
+  id: string;
+  amount_usdt: number;
+  amount_baht: number;
+  status: string;
+  invested_at: string;
+  tier_type: string;
+  tier_name: string;
+  staking_earned: number;
+  total_earnings: number;
+  pending_earnings: number;
+  monthly_rate: number;
+  months_passed: number;
+  months_until_unlock: number;
+  is_unlocked: boolean;
+  unlock_date: string;
+  withdrawal_amount: number;
+  early_fee: number;
+}
+
+export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePageProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Withdrawal modal state
+  const [withdrawalModal, setWithdrawalModal] = useState<Investment | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,6 +85,7 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
   useEffect(() => {
     if (walletAddress) {
       fetchProfile();
+      fetchInvestments();
     }
   }, [walletAddress]);
 
@@ -101,6 +130,69 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchInvestments = async () => {
+    try {
+      const response = await api.getMyInvestments();
+      if (response.data) {
+        setInvestments(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch investments:', err);
+    }
+  };
+
+  const handleWithdrawalRequest = async () => {
+    if (!withdrawalModal) return;
+
+    setWithdrawing(true);
+    try {
+      const response = await api.requestWithdrawal(withdrawalModal.id);
+      if (response.data?.success) {
+        setSuccess('Запрос на вывод отправлен! Администратор свяжется с вами.');
+        setWithdrawalModal(null);
+        fetchInvestments(); // Refresh investments
+      } else {
+        setError(response.error || 'Ошибка при отправке запроса');
+      }
+    } catch (err) {
+      setError('Ошибка при отправке запроса');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: 'Ожидает',
+      pending_confirmation: 'На проверке',
+      active: 'Активна',
+      withdrawal_requested: 'Запрос на вывод',
+      completed: 'Завершена',
+      cancelled: 'Отменена'
+    };
+    return labels[status] || status;
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: '#FFC850',
+      pending_confirmation: '#FFC850',
+      active: '#28B48C',
+      withdrawal_requested: '#009696',
+      completed: '#666',
+      cancelled: '#ef4444'
+    };
+    return colors[status] || '#666';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,21 +241,13 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
   if (!walletAddress) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <Wallet className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-          <h2 className="text-2xl font-bold mb-2">Connect Your Wallet</h2>
-          <p className="text-gray-500">Please connect your wallet to view your profile</p>
+          <Wallet className="h-16 w-16 mx-auto mb-4" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+          <h2 className="text-2xl font-bold mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Connect Your Wallet</h2>
+          <p style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>Please connect your wallet to view your profile</p>
         </div>
       </div>
     );
@@ -172,44 +256,46 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#009696' }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 py-8 px-4">
+    <div className="py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Back Button */}
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
+          className="flex items-center gap-2 mb-6 transition-colors hover:opacity-80"
+          style={{ color: isDark ? '#FFFAF0' : '#143C50' }}
         >
           <ChevronLeft className="h-5 w-5" />
-          <span>Back</span>
+          <span>Назад</span>
         </button>
 
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-teal-600 to-teal-500 rounded-2xl p-6 mb-6 shadow-lg"
+          className="rounded-2xl p-6 mb-6 shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #009696 0%, #28B48C 100%)' }}
         >
           <div className="flex items-center gap-4">
-            <div className="h-20 w-20 rounded-full bg-white/20 flex items-center justify-center">
+            <div className="h-20 w-20 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>
               <User className="h-10 w-10 text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">
-                {formData.name || 'Your Profile'}
+                {formData.name || 'Ваш профиль'}
               </h1>
-              <p className="text-teal-100 flex items-center gap-2">
+              <p className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.9)' }}>
                 <Wallet className="h-4 w-4" />
                 {formatAddress(walletAddress)}
               </p>
               {profile && (
-                <p className="text-teal-200 text-sm mt-1">
-                  Member since {formatDate(profile.createdAt)}
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Участник с {formatDate(profile.createdAt)}
                 </p>
               )}
             </div>
@@ -224,25 +310,49 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
             transition={{ delay: 0.1 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
           >
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <DollarSign className="h-6 w-6 text-teal-400 mb-2" />
-              <p className="text-gray-400 text-sm">Total Invested</p>
-              <p className="text-xl font-bold text-white">${stats.totalInvestedUsdt.toLocaleString()}</p>
+            <div
+              className="rounded-xl p-4 border"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
+                borderColor: isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'
+              }}
+            >
+              <DollarSign className="h-6 w-6 mb-2" style={{ color: '#009696' }} />
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Инвестировано</p>
+              <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>${stats.totalInvestedUsdt.toLocaleString()}</p>
             </div>
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <TrendingUp className="h-6 w-6 text-green-400 mb-2" />
-              <p className="text-gray-400 text-sm">Investments</p>
-              <p className="text-xl font-bold text-white">{stats.totalInvestments}</p>
+            <div
+              className="rounded-xl p-4 border"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
+                borderColor: isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'
+              }}
+            >
+              <TrendingUp className="h-6 w-6 mb-2" style={{ color: '#28B48C' }} />
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Инвестиций</p>
+              <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{stats.totalInvestments}</p>
             </div>
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <Clock className="h-6 w-6 text-yellow-400 mb-2" />
-              <p className="text-gray-400 text-sm">Active</p>
-              <p className="text-xl font-bold text-white">{stats.activeInvestments}</p>
+            <div
+              className="rounded-xl p-4 border"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
+                borderColor: isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'
+              }}
+            >
+              <Clock className="h-6 w-6 mb-2" style={{ color: '#FFC850' }} />
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Активных</p>
+              <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{stats.activeInvestments}</p>
             </div>
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <DollarSign className="h-6 w-6 text-blue-400 mb-2" />
-              <p className="text-gray-400 text-sm">In Baht</p>
-              <p className="text-xl font-bold text-white">฿{stats.totalInvestedBaht.toLocaleString()}</p>
+            <div
+              className="rounded-xl p-4 border"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
+                borderColor: isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'
+              }}
+            >
+              <DollarSign className="h-6 w-6 mb-2" style={{ color: '#009696' }} />
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>В батах</p>
+              <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>฿{stats.totalInvestedBaht.toLocaleString()}</p>
             </div>
           </motion.div>
         )}
@@ -276,30 +386,39 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           onSubmit={handleSubmit}
-          className="bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-lg"
+          className="rounded-2xl p-6 border shadow-lg"
+          style={{
+            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
+            borderColor: isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'
+          }}
         >
-          <h2 className="text-xl font-bold text-white mb-6">Personal Information</h2>
+          <h2 className="text-xl font-bold mb-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Личная информация</h2>
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Name */}
             <div>
-              <label className="block text-gray-400 text-sm mb-2">
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <User className="h-4 w-4 inline mr-2" />
-                Full Name
+                Имя
               </label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Enter your name"
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                placeholder="Введите ваше имя"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-gray-400 text-sm mb-2">
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <Mail className="h-4 w-4 inline mr-2" />
                 Email
               </label>
@@ -309,13 +428,18 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="your@email.com"
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
 
             {/* Telegram */}
             <div>
-              <label className="block text-gray-400 text-sm mb-2">
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <Send className="h-4 w-4 inline mr-2" />
                 Telegram
               </label>
@@ -325,13 +449,18 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
                 value={formData.telegram}
                 onChange={handleChange}
                 placeholder="@username"
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
 
             {/* WhatsApp */}
             <div>
-              <label className="block text-gray-400 text-sm mb-2">
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <MessageCircle className="h-4 w-4 inline mr-2" />
                 WhatsApp
               </label>
@@ -341,13 +470,18 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
                 value={formData.whatsapp}
                 onChange={handleChange}
                 placeholder="+7 999 123 4567"
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
 
             {/* Instagram */}
             <div>
-              <label className="block text-gray-400 text-sm mb-2">
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <Instagram className="h-4 w-4 inline mr-2" />
                 Instagram
               </label>
@@ -357,13 +491,18 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
                 value={formData.instagram}
                 onChange={handleChange}
                 placeholder="@username"
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
 
             {/* Twitter */}
             <div>
-              <label className="block text-gray-400 text-sm mb-2">
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <Twitter className="h-4 w-4 inline mr-2" />
                 Twitter / X
               </label>
@@ -373,13 +512,18 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
                 value={formData.twitter}
                 onChange={handleChange}
                 placeholder="@username"
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
 
             {/* Facebook */}
             <div className="md:col-span-2">
-              <label className="block text-gray-400 text-sm mb-2">
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <Facebook className="h-4 w-4 inline mr-2" />
                 Facebook
               </label>
@@ -389,22 +533,32 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
                 value={formData.facebook}
                 onChange={handleChange}
                 placeholder="facebook.com/username"
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
 
             {/* Bio */}
             <div className="md:col-span-2">
-              <label className="block text-gray-400 text-sm mb-2">
-                About You
+              <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
+                О себе
               </label>
               <textarea
                 name="bio"
                 value={formData.bio}
                 onChange={handleChange}
-                placeholder="Tell us about yourself..."
+                placeholder="Расскажите о себе..."
                 rows={3}
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors resize-none"
+                className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696] resize-none"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  color: isDark ? '#FFFAF0' : '#143C50'
+                }}
               />
             </div>
           </div>
@@ -414,17 +568,21 @@ export function ProfilePage({ walletAddress, onBack }: ProfilePageProps) {
             <button
               type="submit"
               disabled={saving}
-              className="w-full bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white font-semibold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full font-semibold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-[1.02]"
+              style={{
+                background: 'linear-gradient(135deg, #009696 0%, #28B48C 100%)',
+                color: '#FFFAF0'
+              }}
             >
               {saving ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Saving...
+                  Сохранение...
                 </>
               ) : (
                 <>
                   <Save className="h-5 w-5" />
-                  Save Profile
+                  Сохранить профиль
                 </>
               )}
             </button>

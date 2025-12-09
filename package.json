@@ -44,6 +44,9 @@
           "react-hook-form": "^7.55.0",
           "react-resizable-panels": "^2.1.7",
           "recharts": "^2.15.2",
+        "ethers": "^6.13.0",
+        "@reown/appkit": "^1.6.8",
+        "@reown/appkit-adapter-ethers": "^1.6.8",
           "sonner": "^2.0.3",
           "tailwind-merge": "*",
           "vaul": "^1.1.2"

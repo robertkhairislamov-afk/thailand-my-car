@@ -23,7 +23,8 @@ router.get('/settings', async (req, res) => {
       `SELECT key, value FROM platform_settings
        WHERE key IN ('platform_wallet', 'staking_monthly_rate', 'staking_annual_rate',
                      'large_investor_return', 'early_withdrawal_fee',
-                     'min_staking_investment_usd', 'min_car_investment_usd', 'total_cars_available')`
+                     'min_staking_investment_usd', 'min_car_investment_usd', 'total_cars_available',
+                     'exchange_rate_thb_usd')`
     );
 
     const result = {};
@@ -54,11 +55,14 @@ router.get('/tiers', async (req, res) => {
 // Get available cars count
 router.get('/cars/available', async (req, res) => {
   try {
+    const { network = 'mainnet' } = req.query;
     const totalCars = parseInt(await getSetting('total_cars_available', '9'));
 
     const assigned = await pool.query(
-      'SELECT COUNT(*) as count FROM car_assignments WHERE status IN ($1, $2)',
-      ['reserved', 'owned']
+      `SELECT COUNT(*) as count FROM car_assignments ca
+       JOIN investments i ON ca.investment_id = i.id
+       WHERE ca.status IN ($1, $2) AND i.network = $3`,
+      ['reserved', 'owned', network]
     );
 
     const assignedCount = parseInt(assigned.rows[0].count) || 0;
@@ -81,7 +85,8 @@ router.post('/', [
   body('tierId').isInt(),
   body('walletAddress').matches(/^0x[a-fA-F0-9]{40}$/),
   body('amountUsdt').isFloat({ min: 0 }),
-  body('txHash').optional().matches(/^0x[a-fA-F0-9]{64}$/)
+  body('txHash').optional().matches(/^0x[a-fA-F0-9]{64}$/),
+  body('network').optional().isIn(['mainnet', 'testnet'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -89,7 +94,7 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { tierId, walletAddress, amountUsdt, txHash, _formStartTime } = req.body;
+    const { tierId, walletAddress, amountUsdt, txHash, _formStartTime, network = 'mainnet' } = req.body;
     const lowerAddress = walletAddress.toLowerCase();
 
     // Get anti-fraud data from middleware
@@ -174,7 +179,8 @@ router.post('/', [
           txHash,
           platformWallet,
           amountUsdt,
-          5 // 5% tolerance for network fees/rounding
+          5, // 5% tolerance for network fees/rounding
+          network
         );
 
         if (verificationResult.success) {
@@ -209,13 +215,15 @@ router.post('/', [
       INSERT INTO investments (user_id, tier_id, wallet_address, amount_usdt, amount_baht,
                                tx_hash, maturity_date, status, tier_type, last_staking_calc,
                                tx_verified, tx_verification_status, tx_verification_details, tx_verified_at,
-                               integrity_hash, ip_address, user_agent, form_timing_seconds, submission_timestamp)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                               integrity_hash, ip_address, user_agent, form_timing_seconds, submission_timestamp,
+                               network)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `, [userId, tierId, lowerAddress, amountUsdt, amountBaht, txHash, maturityDate,
         initialStatus, tierType, new Date(),
         txVerified, txVerificationStatus, JSON.stringify(txVerificationDetails), txVerifiedAt,
-        integrityHash, req.ip, req.get('user-agent'), formTiming, integrityTimestamp]);
+        integrityHash, req.ip, req.get('user-agent'), formTiming, integrityTimestamp,
+        network]);
 
     const investment = result.rows[0];
 
@@ -489,6 +497,7 @@ router.post('/withdraw/:id', authenticateToken, async (req, res) => {
 router.get('/my', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const { network = 'mainnet' } = req.query;
 
     const result = await pool.query(`
       SELECT i.*, t.name as tier_name, t.return_percentage,
@@ -496,23 +505,55 @@ router.get('/my', authenticateToken, async (req, res) => {
       FROM investments i
       JOIN investment_tiers t ON i.tier_id = t.id
       LEFT JOIN car_assignments ca ON i.id = ca.investment_id
-      WHERE i.user_id = $1
+      WHERE i.user_id = $1 AND i.network = $2
       ORDER BY i.invested_at DESC
-    `, [userId]);
+    `, [userId, network]);
+
+    // Get settings
+    const lockPeriodMonths = parseInt(await getSetting('staking_lock_period_months', '12'));
+    const monthlyRate = parseFloat(await getSetting('staking_monthly_rate', '2.5')) / 100;
+    const earlyFeePercent = parseFloat(await getSetting('early_withdrawal_fee', '5')) / 100;
 
     // Calculate current staking earnings for each active staking investment
     const investments = await Promise.all(result.rows.map(async (inv) => {
+      const investedAt = new Date(inv.invested_at);
+      const now = new Date();
+
+      // Calculate months since investment
+      const monthsPassed = (now.getFullYear() - investedAt.getFullYear()) * 12 +
+                           (now.getMonth() - investedAt.getMonth());
+
+      // Calculate unlock date (12 months from investment)
+      const unlockDate = new Date(investedAt);
+      unlockDate.setMonth(unlockDate.getMonth() + lockPeriodMonths);
+
+      inv.months_passed = monthsPassed;
+      inv.unlock_date = unlockDate.toISOString();
+      inv.is_unlocked = now >= unlockDate;
+      inv.months_until_unlock = Math.max(0, lockPeriodMonths - monthsPassed);
+
       if (inv.tier_type === 'staking' && inv.status === 'active') {
         const lastCalc = new Date(inv.last_staking_calc || inv.invested_at);
-        const now = new Date();
-        const monthsDiff = (now.getFullYear() - lastCalc.getFullYear()) * 12 +
-                           (now.getMonth() - lastCalc.getMonth());
+        const calcMonthsDiff = (now.getFullYear() - lastCalc.getFullYear()) * 12 +
+                               (now.getMonth() - lastCalc.getMonth());
 
-        const monthlyRate = parseFloat(await getSetting('staking_monthly_rate', '2.5')) / 100;
-        const pendingEarnings = parseFloat(inv.amount_usdt) * monthlyRate * monthsDiff;
+        const pendingEarnings = parseFloat(inv.amount_usdt) * monthlyRate * calcMonthsDiff;
 
         inv.pending_earnings = pendingEarnings;
         inv.total_earnings = (parseFloat(inv.staking_earned) || 0) + pendingEarnings;
+        inv.monthly_rate = monthlyRate * 100;
+
+        // Calculate withdrawal amounts
+        const principal = parseFloat(inv.amount_usdt);
+        const totalWithEarnings = principal + inv.total_earnings;
+
+        if (inv.is_unlocked) {
+          inv.withdrawal_amount = totalWithEarnings;
+          inv.early_fee = 0;
+        } else {
+          inv.early_fee = totalWithEarnings * earlyFeePercent;
+          inv.withdrawal_amount = totalWithEarnings - inv.early_fee;
+        }
       }
       return inv;
     }));
@@ -524,10 +565,102 @@ router.get('/my', authenticateToken, async (req, res) => {
   }
 });
 
+// Request withdrawal (user creates request, admin approves)
+router.post('/withdraw-request/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const investment = await pool.query(
+      `SELECT * FROM investments WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (investment.rows.length === 0) {
+      return res.status(404).json({ error: 'Investment not found' });
+    }
+
+    const inv = investment.rows[0];
+
+    if (inv.status !== 'active') {
+      return res.status(400).json({ error: 'Investment must be active to request withdrawal' });
+    }
+
+    if (inv.tier_type !== 'staking') {
+      return res.status(400).json({ error: 'Withdrawal request is only for staking investments' });
+    }
+
+    // Calculate amounts
+    const lockPeriodMonths = parseInt(await getSetting('staking_lock_period_months', '12'));
+    const monthlyRate = parseFloat(await getSetting('staking_monthly_rate', '2.5')) / 100;
+    const earlyFeePercent = parseFloat(await getSetting('early_withdrawal_fee', '5')) / 100;
+
+    const investedAt = new Date(inv.invested_at);
+    const now = new Date();
+    const monthsPassed = (now.getFullYear() - investedAt.getFullYear()) * 12 +
+                         (now.getMonth() - investedAt.getMonth());
+
+    const unlockDate = new Date(investedAt);
+    unlockDate.setMonth(unlockDate.getMonth() + lockPeriodMonths);
+    const isUnlocked = now >= unlockDate;
+
+    // Calculate earnings
+    const lastCalc = new Date(inv.last_staking_calc || inv.invested_at);
+    const calcMonthsDiff = (now.getFullYear() - lastCalc.getFullYear()) * 12 +
+                           (now.getMonth() - lastCalc.getMonth());
+    const pendingEarnings = parseFloat(inv.amount_usdt) * monthlyRate * calcMonthsDiff;
+    const totalEarnings = (parseFloat(inv.staking_earned) || 0) + pendingEarnings;
+
+    const principal = parseFloat(inv.amount_usdt);
+    const totalWithEarnings = principal + totalEarnings;
+
+    let withdrawalAmount, earlyFee;
+    if (isUnlocked) {
+      withdrawalAmount = totalWithEarnings;
+      earlyFee = 0;
+    } else {
+      earlyFee = totalWithEarnings * earlyFeePercent;
+      withdrawalAmount = totalWithEarnings - earlyFee;
+    }
+
+    // Update investment status and store calculated amounts
+    await pool.query(`
+      UPDATE investments
+      SET status = 'withdrawal_requested',
+          staking_earned = $1,
+          last_staking_calc = CURRENT_TIMESTAMP,
+          return_amount = $2,
+          early_withdrawal_fee = $3
+      WHERE id = $4
+    `, [totalEarnings, withdrawalAmount, earlyFee, id]);
+
+    // Log the request
+    await pool.query(`
+      INSERT INTO staking_log (investment_id, type, amount, rate_applied, notes)
+      VALUES ($1, 'withdrawal_request', $2, $3, $4)
+    `, [id, withdrawalAmount, earlyFee, isUnlocked ? 'Full withdrawal (unlocked)' : `Early withdrawal with ${earlyFeePercent * 100}% fee`]);
+
+    res.json({
+      success: true,
+      message: 'Withdrawal request submitted',
+      principal,
+      total_earnings: totalEarnings,
+      early_fee: earlyFee,
+      withdrawal_amount: withdrawalAmount,
+      is_early: !isUnlocked,
+      months_passed: monthsPassed
+    });
+  } catch (error) {
+    console.error('Withdraw request error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get investments by wallet (public)
 router.get('/wallet/:address', async (req, res) => {
   try {
     const { address } = req.params;
+    const { network = 'mainnet' } = req.query;
     const lowerAddress = address.toLowerCase();
 
     const result = await pool.query(`
@@ -536,9 +669,9 @@ router.get('/wallet/:address', async (req, res) => {
              t.name as tier_name, t.return_percentage
       FROM investments i
       JOIN investment_tiers t ON i.tier_id = t.id
-      WHERE i.wallet_address = $1
+      WHERE i.wallet_address = $1 AND i.network = $2
       ORDER BY i.invested_at DESC
-    `, [lowerAddress]);
+    `, [lowerAddress, network]);
 
     res.json(result.rows);
   } catch (error) {
@@ -550,6 +683,8 @@ router.get('/wallet/:address', async (req, res) => {
 // Get platform stats (public)
 router.get('/stats', async (req, res) => {
   try {
+    const { network = 'mainnet' } = req.query;
+
     const stats = await pool.query(`
       SELECT
         COALESCE(SUM(amount_usdt), 0) as total_invested_usdt,
@@ -560,7 +695,8 @@ router.get('/stats', async (req, res) => {
         COUNT(CASE WHEN tier_type = 'staking' THEN 1 END) as staking_investments,
         COUNT(CASE WHEN tier_type = 'car_share' THEN 1 END) as car_share_investments
       FROM investments
-    `);
+      WHERE network = $1
+    `, [network]);
 
     res.json(stats.rows[0]);
   } catch (error) {
@@ -572,6 +708,8 @@ router.get('/stats', async (req, res) => {
 // Get fundraising data (public)
 router.get('/fundraising', async (req, res) => {
   try {
+    const { network = 'mainnet' } = req.query;
+
     const investmentStats = await pool.query(`
       SELECT
         COALESCE(SUM(amount_usdt), 0) as current_usd,
@@ -579,7 +717,8 @@ router.get('/fundraising', async (req, res) => {
         COUNT(DISTINCT wallet_address) as investors_count
       FROM investments
       WHERE status IN ('pending', 'pending_confirmation', 'confirmed', 'active')
-    `);
+        AND network = $1
+    `, [network]);
 
     const stats = investmentStats.rows[0];
 
@@ -598,10 +737,12 @@ router.get('/fundraising', async (req, res) => {
     const investorsCount = parseInt(stats.investors_count) || 0;
     const progress = targetBaht > 0 ? (currentBaht / targetBaht) * 100 : 0;
 
-    // Get cars available
-    const assigned = await pool.query(
-      'SELECT COUNT(*) as count FROM car_assignments'
-    );
+    // Get cars available (filter by network via join with investments)
+    const assigned = await pool.query(`
+      SELECT COUNT(*) as count FROM car_assignments ca
+      JOIN investments i ON ca.investment_id = i.id
+      WHERE i.network = $1
+    `, [network]);
     const carsAssigned = parseInt(assigned.rows[0].count) || 0;
 
     res.json({
@@ -659,12 +800,13 @@ router.post('/verify-tx/:id', authenticateToken, requireAdmin, async (req, res) 
       return res.status(500).json({ error: 'Platform wallet not configured' });
     }
 
-    // Verify the transaction
+    // Verify the transaction (use investment's network)
     const verificationResult = await bscscan.verifyStablecoinTransfer(
       investment.tx_hash,
       platformWallet,
       parseFloat(investment.amount_usdt),
-      5 // 5% tolerance
+      5, // 5% tolerance
+      investment.network || 'mainnet'
     );
 
     let txVerified = false;

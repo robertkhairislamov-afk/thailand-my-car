@@ -55,10 +55,10 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
     <div className="relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute top-20 right-0 w-96 h-96 rounded-full blur-3xl opacity-20 ${
+        <div className={`absolute top-20 -right-20 sm:right-0 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 rounded-full blur-3xl opacity-20 ${
           isDark ? 'bg-[#009696]' : 'bg-[#009696]'
         }`} />
-        <div className={`absolute bottom-0 left-0 w-96 h-96 rounded-full blur-3xl opacity-20 ${
+        <div className={`absolute bottom-0 -left-20 sm:left-0 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 rounded-full blur-3xl opacity-20 ${
           isDark ? 'bg-[#FFC850]' : 'bg-[#FFC850]'
         }`} />
       </div>
@@ -84,18 +84,20 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
             </span>
           </motion.div>
 
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl md:text-6xl lg:text-7xl tracking-tight mb-6"
-            style={{ 
+            className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl tracking-tight mb-6 px-2 sm:px-0"
+            style={{
               color: isDark ? '#FFC850' : '#143C50',
               fontWeight: 700,
               lineHeight: 1.1
             }}
           >
-            Инвестируйте в рентал-бизнес<br />
+            <span className="block sm:inline">Инвестируйте</span>{' '}
+            <span className="block sm:inline">в рентал-бизнес</span>
+            <br />
             <span style={{ color: '#009696' }}>с криптовалютой</span>
           </motion.h1>
 
@@ -103,13 +105,16 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto"
+            className="text-base sm:text-xl md:text-2xl mb-8 max-w-3xl mx-auto px-2 sm:px-0"
             style={{
               color: isDark ? '#FFFAF0' : '#143C50',
               opacity: 0.9
             }}
           >
-            {totalCars} автомобилей Toyota • От $1,000 • 2.5%/мес или авто в собственность
+            <span className="block sm:inline">{totalCars} автомобилей Toyota</span>
+            <span className="hidden sm:inline"> • </span>
+            <span className="block sm:inline">От $1,000 • 2.5%/мес</span>
+            <span className="block sm:inline"> или авто в собственность</span>
           </motion.p>
 
           {/* Key Stats */}

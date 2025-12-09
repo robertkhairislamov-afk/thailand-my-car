@@ -1,4 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL || '';
+const IS_TESTNET = import.meta.env.VITE_BSC_TESTNET === 'true';
+const NETWORK: 'mainnet' | 'testnet' = IS_TESTNET ? 'testnet' : 'mainnet';
 
 interface ApiResponse<T> {
   data?: T;
@@ -20,6 +22,10 @@ class ApiService {
   clearToken() {
     this.token = null;
     localStorage.removeItem('auth_token');
+  }
+
+  getToken() {
+    return this.token;
   }
 
   private async request<T>(
@@ -55,10 +61,17 @@ class ApiService {
   }
 
   // Auth
-  async connectWallet(walletAddress: string) {
-    return this.request<{ token: string; user: any }>('/api/auth/wallet/connect', {
+  async getWalletNonce(walletAddress: string) {
+    return this.request<{ message: string; nonce: string }>('/api/auth/wallet/nonce', {
       method: 'POST',
       body: JSON.stringify({ walletAddress }),
+    });
+  }
+
+  async connectWallet(walletAddress: string, signature?: string) {
+    return this.request<{ token: string; user: any }>('/api/auth/wallet/connect', {
+      method: 'POST',
+      body: JSON.stringify({ walletAddress, signature }),
     });
   }
 
@@ -91,7 +104,7 @@ class ApiService {
       total_investors: string;
       active_investments: string;
       completed_investments: string;
-    }>('/api/investments/stats');
+    }>(`/api/investments/stats?network=${NETWORK}`);
   }
 
   async getFundraising() {
@@ -103,7 +116,7 @@ class ApiService {
       cars: { total: number; assigned: number; available: number };
       deadline: string;
       isActive: boolean;
-    }>('/api/investments/fundraising');
+    }>(`/api/investments/fundraising?network=${NETWORK}`);
   }
 
   async getPlatformSettings() {
@@ -116,6 +129,7 @@ class ApiService {
       min_staking_investment_usd: string;
       min_car_investment_usd: string;
       total_cars_available: string;
+      exchange_rate_thb_usd: string;
     }>('/api/investments/settings');
   }
 
@@ -135,6 +149,7 @@ class ApiService {
     // Anti-fraud fields
     _formStartTime?: number;
     website?: string; // honeypot - should be empty
+    network?: 'mainnet' | 'testnet';
   }) {
     return this.request<{
       id: string;
@@ -171,11 +186,26 @@ class ApiService {
   }
 
   async getWalletInvestments(walletAddress: string) {
-    return this.request<any[]>(`/api/investments/wallet/${walletAddress}`);
+    return this.request<any[]>(`/api/investments/wallet/${walletAddress}?network=${NETWORK}`);
   }
 
   async getMyInvestments() {
-    return this.request<any[]>('/api/investments/my');
+    return this.request<any[]>(`/api/investments/my?network=${NETWORK}`);
+  }
+
+  async requestWithdrawal(investmentId: string) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      principal: number;
+      total_earnings: number;
+      early_fee: number;
+      withdrawal_amount: number;
+      is_early: boolean;
+      months_passed: number;
+    }>(`/api/investments/withdraw-request/${investmentId}`, {
+      method: 'POST',
+    });
   }
 
   // Contact
@@ -192,8 +222,8 @@ class ApiService {
   }
 
   // Admin
-  async getAdminDashboard() {
-    return this.request<any>('/api/admin/dashboard');
+  async getAdminDashboard(network: 'mainnet' | 'testnet' = 'mainnet') {
+    return this.request<any>(`/api/admin/dashboard?network=${network}`);
   }
 
   async getAdminInvestments(params?: {
@@ -201,6 +231,7 @@ class ApiService {
     page?: number;
     limit?: number;
     search?: string;
+    network?: 'mainnet' | 'testnet';
   }) {
     const query = new URLSearchParams(params as any).toString();
     return this.request<any>(`/api/admin/investments${query ? `?${query}` : ''}`);
@@ -264,6 +295,92 @@ class ApiService {
       byAction: { action: string; count: string }[];
       byEntity: { entity_type: string; count: string }[];
     }>('/api/admin/logs/stats');
+  }
+
+  // Admin Settings
+  async getAdminSettings() {
+    return this.request<Array<{
+      key: string;
+      value: string;
+      description: string;
+      updated_at: string;
+    }>>('/api/admin/settings');
+  }
+
+  async updateAdminSetting(key: string, value: string, pin?: string) {
+    return this.request<{
+      key: string;
+      value: string;
+      description: string;
+      updated_at: string;
+    }>(`/api/admin/settings/${key}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ value, pin }),
+    });
+  }
+
+  // Chat
+  async createChatSession(data: {
+    sessionId?: string;
+    userName: string;
+    userEmail?: string;
+    userWallet?: string;
+  }) {
+    return this.request<{ session: any }>('/api/chat/session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async sendChatMessage(data: {
+    sessionId: string;
+    sender: 'user' | 'agent';
+    senderName?: string;
+    message: string;
+  }) {
+    return this.request<{ message: any }>('/api/chat/message', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async requestAdmin(sessionId: string) {
+    return this.request<{ success: boolean }>('/api/chat/request-admin', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId }),
+    });
+  }
+
+  async getChatMessages(sessionId: string, after?: string) {
+    const query = after ? `?after=${after}` : '';
+    return this.request<{ messages: any[] }>(`/api/chat/messages/${sessionId}${query}`);
+  }
+
+  // Admin Chat
+  async getAdminChatSessions(params?: { status?: string; needsAdmin?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request<{ sessions: any[] }>(`/api/chat/admin/sessions${query ? `?${query}` : ''}`);
+  }
+
+  async getAdminChatMessages(sessionId: string) {
+    return this.request<{ session: any; messages: any[] }>(`/api/chat/admin/messages/${sessionId}`);
+  }
+
+  async sendAdminChatMessage(sessionId: string, message: string) {
+    return this.request<{ message: any }>('/api/chat/admin/message', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, message }),
+    });
+  }
+
+  async closeChatSession(sessionId: string) {
+    return this.request<{ success: boolean }>(`/api/chat/admin/close/${sessionId}`, {
+      method: 'POST',
+    });
+  }
+
+  async getAdminUnreadChats() {
+    return this.request<{ unread: number }>('/api/chat/admin/unread');
   }
 }
 

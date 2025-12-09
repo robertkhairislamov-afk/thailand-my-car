@@ -9,22 +9,27 @@ const investmentsRoutes = require('./routes/investments');
 const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
 const profileRoutes = require('./routes/profile');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy (behind Nginx)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: ['https://saturway.space', 'https://www.saturway.space'],
   credentials: true
 }));
 
-// Rate limiting
+// Rate limiting - general API (more permissive)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 200 // 200 requests per minute
 });
+
 app.use('/api/', limiter);
 
 // Body parsing
@@ -42,6 +47,7 @@ app.use('/api/investments', investmentsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 404 handler
 app.use((req, res) => {

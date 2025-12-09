@@ -111,30 +111,45 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return '#FFC850';
-      case 'confirmed': return '#28B48C';
+      case 'pending':
+      case 'pending_confirmation': return '#FFC850';
+      case 'withdrawal_requested': return '#9B59B6';
+      case 'confirmed':
+      case 'active': return '#28B48C';
       case 'completed': return '#009696';
-      case 'rejected': return '#E74C3C';
+      case 'rejected':
+      case 'cancelled':
+      case 'refunded': return '#E74C3C';
       default: return '#FFFAF0';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="w-5 h-5" />;
-      case 'confirmed': return <CheckCircle className="w-5 h-5" />;
+      case 'pending':
+      case 'pending_confirmation': return <Clock className="w-5 h-5" />;
+      case 'withdrawal_requested': return <DollarSign className="w-5 h-5" />;
+      case 'confirmed':
+      case 'active': return <CheckCircle className="w-5 h-5" />;
       case 'completed': return <CheckCircle className="w-5 h-5" />;
-      case 'rejected': return <XCircle className="w-5 h-5" />;
+      case 'rejected':
+      case 'cancelled':
+      case 'refunded': return <XCircle className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'Ожидает подтверждения';
+      case 'pending': return 'Ожидает';
+      case 'pending_confirmation': return 'Ожидает подтверждения оплаты';
+      case 'withdrawal_requested': return 'Запрос на вывод';
       case 'confirmed': return 'Подтверждено';
+      case 'active': return 'Активно';
       case 'completed': return 'Завершено';
       case 'rejected': return 'Отклонено';
+      case 'cancelled': return 'Отменено';
+      case 'refunded': return 'Возврат';
       default: return status;
     }
   };
@@ -182,10 +197,10 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
             <span style={{ fontWeight: 600 }}>{getStatusText(investment.status)}</span>
           </div>
           
-          {investment.status === 'pending' && onUpdateStatus && (
+          {(investment.status === 'pending' || investment.status === 'pending_confirmation') && onUpdateStatus && (
             <div className="flex gap-2">
               <button
-                onClick={() => onUpdateStatus(investment.id, 'confirmed')}
+                onClick={() => onUpdateStatus(investment.id, 'active')}
                 className="px-4 py-2 rounded-xl transition-all hover:scale-105"
                 style={{
                   background: '#28B48C',
@@ -204,6 +219,32 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
                 }}
               >
                 Отклонить
+              </button>
+            </div>
+          )}
+
+          {investment.status === 'withdrawal_requested' && onUpdateStatus && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => onUpdateStatus(investment.id, 'completed')}
+                className="px-4 py-2 rounded-xl transition-all hover:scale-105"
+                style={{
+                  background: '#009696',
+                  color: '#FFFAF0'
+                }}
+              >
+                Выплачено
+              </button>
+              <button
+                onClick={() => onUpdateStatus(investment.id, 'active')}
+                className="px-4 py-2 rounded-xl transition-all hover:scale-105"
+                style={{
+                  background: 'rgba(255,200,80,0.2)',
+                  color: '#FFC850',
+                  border: '1px solid rgba(255,200,80,0.3)'
+                }}
+              >
+                Отменить запрос
               </button>
             </div>
           )}
