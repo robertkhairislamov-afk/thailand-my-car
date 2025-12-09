@@ -54,21 +54,20 @@ export function InvestorDashboard({ walletAddress }: InvestorDashboardProps) {
             ? Math.max(0, (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()))
             : 0;
 
-          // Lock period is 12 months for staking
-          const lockPeriod = 12;
-          const totalMonths = 12;
+          // Lock period: 12 months for staking, 6 months for car_share
+          const isCarShare = inv.tier_type === 'car_share';
+          const lockPeriod = isCarShare ? 6 : 12;
+          const totalMonths = isCarShare ? 6 : 12;
 
-          // Monthly rate: 2.5% for staking, 0 for car_share
-          const monthlyRate = inv.tier_type === 'staking' ? 2.5 : 0;
+          // Monthly rate: 2.5% for staking, ~3.33% for car_share (20% / 6 months)
+          const monthlyRate = isCarShare ? 3.33 : 2.5;
 
           const isLocked = monthsPassed < lockPeriod;
           const monthsUntilUnlock = isLocked ? Math.max(0, lockPeriod - monthsPassed) : 0;
 
           // Calculate earnings
           const principal = parseFloat(inv.amount_usdt) || 0;
-          const earned = inv.tier_type === 'staking'
-            ? principal * (monthlyRate / 100) * monthsPassed
-            : 0;
+          const earned = principal * (monthlyRate / 100) * Math.min(monthsPassed, totalMonths);
 
           return {
             id: inv.id,
@@ -389,11 +388,11 @@ export function InvestorDashboard({ walletAddress }: InvestorDashboardProps) {
                       <div className="flex items-center gap-2">
                         <span className="px-3 py-1 rounded-full text-sm"
                           style={{
-                            backgroundColor: 'rgba(0, 150, 150, 0.2)',
-                            color: '#009696',
-                            border: '1px solid rgba(0, 150, 150, 0.3)'
+                            backgroundColor: investment.type === 'car' ? 'rgba(255, 200, 80, 0.2)' : 'rgba(0, 150, 150, 0.2)',
+                            color: investment.type === 'car' ? '#FFC850' : '#009696',
+                            border: `1px solid ${investment.type === 'car' ? 'rgba(255, 200, 80, 0.3)' : 'rgba(0, 150, 150, 0.3)'}`
                           }}>
-                          Стейкинг
+                          {investment.type === 'car' ? 'Доля в авто' : 'Стейкинг'}
                         </span>
                       </div>
                     </div>
