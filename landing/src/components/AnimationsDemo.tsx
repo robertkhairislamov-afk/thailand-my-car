@@ -2,7 +2,7 @@ import { Card } from './ui/card';
 import { RippleButton } from './RippleButton';
 import { AnimatedCard, StaggerContainer, FadeIn, SlideIn, ScaleIn } from './AnimatedScreen';
 import { motion } from 'motion/react';
-import { Zap, Heart, Star, TrendingUp } from 'lucide-react';
+import { Zap, Heart, Star, TrendingUp, CheckCircle2 } from 'lucide-react';
 
 export function AnimationsDemo() {
   return (
@@ -260,7 +260,7 @@ export function AnimationsDemo() {
                   animate={{ rotate: 360 }}
                   transition={{ duration: 0.5 }}
                 >
-                  ✓
+                  <CheckCircle2 className="h-8 w-8 text-green-600" />
                 </motion.div>
               </div>
             </motion.div>

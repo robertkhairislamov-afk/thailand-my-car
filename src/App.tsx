@@ -8,8 +8,10 @@ import { InvestModal } from './components/thailand/InvestModal';
 import { ChatWidget } from './components/ChatWidget';
 import { ProfilePage } from './components/thailand/ProfilePage';
 import { InvestorDashboard } from './components/InvestorDashboard';
+import { CookieBanner } from './components/CookieBanner';
 import AdminApp from './AdminApp';
 import { api } from './services/api';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
 
 interface TierData {
@@ -23,7 +25,17 @@ interface TierData {
   features: string[];
 }
 
+// Main App wrapper with LanguageProvider
 export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  );
+}
+
+function AppContent() {
+  const { language, setLanguage, t } = useLanguage();
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -31,13 +43,33 @@ export default function App() {
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [selectedTier, setSelectedTier] = useState<TierData | null>(null);
   const [isInvestModalOpen, setIsInvestModalOpen] = useState(false);
-  
-  // Check URL for admin route (under /thailand-my-car/admin)
+
+  // Track page view
+  useEffect(() => {
+    // Не трекаем админку
+    if (window.location.pathname.includes("admin")) return;
+    
+    const page = window.location.pathname + window.location.search;
+    const referrer = document.referrer || undefined;
+    
+    api.trackPageView(page, referrer).catch(() => {});
+  }, []);
+
+  // Check URL for admin route (only on saturway.com, not on saturway.space)
   useEffect(() => {
     const path = window.location.pathname;
+    const host = window.location.hostname;
+
+    // Admin only available on saturway.com
+    const isAdminHost = host === 'saturway.com' || host === 'www.saturway.com' || host === 'localhost';
+
     setIsAdminRoute(
-      path === '/thailand-my-car/admin' ||
-      path.startsWith('/thailand-my-car/admin/')
+      isAdminHost && (
+        path === '/thailand-my-car/admin' ||
+        path.startsWith('/thailand-my-car/admin/') ||
+        path === '/thailand-my-car_admin/admin' ||
+        path.startsWith('/thailand-my-car_admin/admin/')
+      )
     );
   }, []);
 
@@ -59,7 +91,7 @@ export default function App() {
 
   const handleInvest = (tierId: number) => {
     if (!walletAddress) {
-      alert('Пожалуйста, подключите кошелек для инвестирования');
+      alert(t('alert.connectWallet'));
       return;
     }
 
@@ -156,6 +188,8 @@ export default function App() {
           onTabChange={handleTabChange}
           walletAddress={walletAddress}
           onWalletChange={setWalletAddress}
+          language={language}
+          onLanguageChange={setLanguage}
         />
 
         <main>
@@ -205,30 +239,30 @@ export default function App() {
           {activeTab === 'roadmap' && (
             <div className="max-w-7xl mx-auto px-6 py-16">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl lg:text-5xl mb-4" style={{ 
+                <h2 className="text-3xl md:text-4xl lg:text-5xl mb-4" style={{
                   color: isDark ? '#FFC850' : '#143C50',
                   fontWeight: 700
                 }}>
-                  Roadmap проекта
+                  {t('roadmap.title')}
                 </h2>
-                <p className="text-lg md:text-xl max-w-3xl mx-auto" style={{ 
+                <p className="text-lg md:text-xl max-w-3xl mx-auto" style={{
                   color: isDark ? '#FFFAF0' : '#143C50',
                   opacity: 0.8
                 }}>
-                  Наш план развития и ключевые вехи
+                  {t('roadmap.subtitle')}
                 </p>
               </div>
 
               <div className="space-y-6">
                 {[
-                  { quarter: 'Q4 2025', title: 'Запуск платформы', status: 'completed', items: ['Создание Web3 платформы', 'Подключение MetaMask', 'Дизайн и UI/UX'] },
-                  { quarter: 'Декабрь 2025 - Январь 2026', title: 'Сбор средств', status: 'current', items: ['Привлечение инвесторов', 'Достижение цели ฿2.8M', 'KYC и AML процедуры'] },
-                  { quarter: 'Январь 2026', title: 'Закрытие раунда', status: 'upcoming', items: ['Завершение сбора средств', 'Начало юридического оформления'] },
-                  { quarter: 'Февраль 2026', title: 'Юридическое оформление', status: 'upcoming', items: ['Регистрация долей', 'Подписание договоров', 'Настройка автоматических выплат'] },
-                  { quarter: 'Март 2026', title: 'Первые выплаты', status: 'upcoming', items: ['Начало ежемесячных выплат', 'Dashboard с реальными данными', 'Governance голосования'] },
-                  { quarter: 'Июль 2026', title: 'Расширение автопарка', status: 'upcoming', items: ['Увеличение парка до 15 автомобилей', 'Банковское финансирование в Таиланде', 'Масштабирование операций'] },
-                  { quarter: 'Октябрь 2026', title: 'Новые продукты', status: 'upcoming', items: ['Запуск лизинга под 20% годовых', 'Открытие филиала на Пхукете', 'Расширение географии бизнеса'] },
-                  { quarter: '2027', title: 'To be continued...', status: 'upcoming', items: ['Дальнейшее развитие', 'Новые направления', 'Международная экспансия'] },
+                  { quarter: t('roadmap.q4_2025'), title: t('roadmap.launch'), status: 'completed', items: t('roadmap.launchItems').split('|') },
+                  { quarter: t('roadmap.dec_jan'), title: t('roadmap.fundraising'), status: 'current', items: t('roadmap.fundraisingItems').split('|') },
+                  { quarter: t('roadmap.jan_2026'), title: t('roadmap.roundClose'), status: 'upcoming', items: t('roadmap.roundCloseItems').split('|') },
+                  { quarter: t('roadmap.feb_2026'), title: t('roadmap.legal'), status: 'upcoming', items: t('roadmap.legalItems').split('|') },
+                  { quarter: t('roadmap.mar_2026'), title: t('roadmap.firstPayouts'), status: 'upcoming', items: t('roadmap.firstPayoutsItems').split('|') },
+                  { quarter: t('roadmap.jul_2026'), title: t('roadmap.expansion'), status: 'upcoming', items: t('roadmap.expansionItems').split('|') },
+                  { quarter: t('roadmap.oct_2026'), title: t('roadmap.newProducts'), status: 'upcoming', items: t('roadmap.newProductsItems').split('|') },
+                  { quarter: t('roadmap.2027'), title: t('roadmap.continued'), status: 'upcoming', items: t('roadmap.continuedItems').split('|') },
                 ].map((milestone, index) => (
                   <div key={index} className="rounded-2xl p-6 backdrop-blur-xl border"
                     style={{
@@ -292,9 +326,7 @@ export default function App() {
                 <div className="flex items-start gap-3 justify-center">
                   <Scale className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#009696' }} />
                   <p className="text-left max-w-2xl">
-                    Roadmap носит ориентировочный характер. Сроки и этапы могут корректироваться
-                    в зависимости от рыночных условий, регуляторных требований и бизнес-возможностей.
-                    Компания оставляет за собой право вносить изменения для достижения наилучших результатов.
+                    {t('roadmap.disclaimer')}
                   </p>
                 </div>
               </div>
@@ -311,22 +343,22 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
               <div>
-                <h4 className="text-lg mb-3" style={{ 
+                <h4 className="text-lg mb-3" style={{
                   color: isDark ? '#FFC850' : '#143C50',
                   fontWeight: 600
                 }}>
                   Thailand My Car
                 </h4>
                 <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  Инвестиции в рентал-бизнес автомобилей через блокчейн технологии
+                  {t('footer.description')}
                 </p>
               </div>
               <div>
-                <h4 className="text-lg mb-3" style={{ 
+                <h4 className="text-lg mb-3" style={{
                   color: isDark ? '#FFC850' : '#143C50',
                   fontWeight: 600
                 }}>
-                  Контакты
+                  {t('footer.contacts')}
                 </h4>
                 <div className="space-y-2 text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
                   <a
@@ -363,10 +395,9 @@ export default function App() {
                 color: isDark ? '#FFFAF0' : '#143C50'
               }}
             >
-              <p className="mb-2">© 2025 Thailand My Car. All rights reserved.</p>
+              <p className="mb-2">© 2025 Thailand My Car. {t('footer.rights')}.</p>
               <p className="text-xs">
-                ⚠️ Частные займы несут риски. Доходность не гарантируется. Это не публичное предложение ценных бумаг.
-                Платформа предназначена для частных договорённостей между знакомыми лицами.
+                ⚠️ {t('footer.disclaimer')}
               </p>
             </div>
           </div>
@@ -386,6 +417,8 @@ export default function App() {
         onSuccess={handleInvestSuccess}
       />
 
+      {/* Cookie Consent Banner */}
+      <CookieBanner />
     </div>
   );
 }

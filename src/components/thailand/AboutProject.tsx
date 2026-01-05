@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Car, TrendingUp, Users, MapPin, Shield, BarChart3, ChevronDown, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { useLanguage } from '../../contexts/LanguageContext';
 import toyotaImage1 from 'figma:asset/5ced44ff814542adbb7d542e23cd5e996dbff908.png';
 import toyotaImage2 from 'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png';
 
@@ -10,45 +11,46 @@ interface AboutProjectProps {
 }
 
 export function AboutProject({ isDark }: AboutProjectProps) {
+  const { t } = useLanguage();
   const [expandedFeature, setExpandedFeature] = useState<number | null>(null);
 
   const stats = [
-    { icon: Car, label: 'Автомобилей', value: '9', subtitle: 'Toyota в автопарке' },
-    { icon: TrendingUp, label: 'Ежемесячный доход', value: '180k+', subtitle: '฿ стабильный поток' },
-    { icon: Users, label: 'Загрузка', value: '85%', subtitle: 'Средняя за 2024' },
-    { icon: MapPin, label: 'Локация', value: 'Паттайя', subtitle: 'Туристический центр' }
+    { icon: Car, label: t('about.cars'), value: '9', subtitle: t('about.carsSubtitle') },
+    { icon: TrendingUp, label: t('about.monthlyIncome'), value: '180k+', subtitle: t('about.monthlyIncomeSubtitle') },
+    { icon: Users, label: t('about.occupancy'), value: '85%', subtitle: t('about.occupancySubtitle') },
+    { icon: MapPin, label: t('about.location'), value: t('about.locationValue'), subtitle: t('about.locationSubtitle') }
   ];
 
   const timeline = [
-    { year: '2022', label: 'Запуск', value: '3 авто', color: '#28B48C' },
-    { year: '2023', label: 'Рост', value: '6 авто', color: '#009696' },
-    { year: '2024', label: 'Сейчас', value: '9 авто', color: '#FFC850' }
+    { year: '2022', label: t('about.launch'), value: t('about.cars3'), color: '#28B48C' },
+    { year: '2023', label: t('about.growth'), value: t('about.cars6'), color: '#009696' },
+    { year: '2024', label: t('about.now'), value: t('about.cars9'), color: '#FFC850' }
   ];
 
   const features = [
     {
       icon: Shield,
-      title: 'Страхование',
-      description: 'Полная страховка Type 1 (ชั้น 1) на авто и пассажиров',
+      title: t('about.insurance'),
+      description: t('about.insuranceDesc'),
       expandable: true,
       expandedDetails: [
-        'Полное покрытие ущерба автомобиля',
-        'Угон и злоумышленные действия',
-        'Стихийные бедствия (наводнение, пожар)',
-        'Медицинские расходы водителя и пассажиров',
-        'Ответственность перед третьими лицами',
-        'Эвакуация и помощь на дороге 24/7'
+        t('about.insuranceCoverage1'),
+        t('about.insuranceCoverage2'),
+        t('about.insuranceCoverage3'),
+        t('about.insuranceCoverage4'),
+        t('about.insuranceCoverage5'),
+        t('about.insuranceCoverage6')
       ]
     },
     {
       icon: BarChart3,
-      title: 'Прозрачность',
-      description: 'Ежемесячные отчеты и доступ к метрикам в реальном времени'
+      title: t('about.transparency'),
+      description: t('about.transparencyDesc')
     },
     {
       icon: Users,
-      title: 'Опыт',
-      description: '2+ года успешной работы на рынке рентала в Таиланде'
+      title: t('about.experience'),
+      description: t('about.experienceDesc')
     }
   ];
 
@@ -62,17 +64,17 @@ export function AboutProject({ isDark }: AboutProjectProps) {
         transition={{ duration: 0.6 }}
         className="text-center mb-16"
       >
-        <h2 className="text-3xl md:text-4xl lg:text-5xl mb-4" style={{ 
+        <h2 className="text-3xl md:text-4xl lg:text-5xl mb-4" style={{
           color: isDark ? '#FFC850' : '#143C50',
           fontWeight: 700
         }}>
-          О проекте
+          {t('about.title')}
         </h2>
-        <p className="text-lg md:text-xl max-w-3xl mx-auto" style={{ 
+        <p className="text-lg md:text-xl max-w-3xl mx-auto" style={{
           color: isDark ? '#FFFAF0' : '#143C50',
           opacity: 0.8
         }}>
-          Действующий бизнес по прокату автомобилей Toyota в Паттайе с проверенными показателями доходности
+          {t('about.subtitle')}
         </p>
       </motion.div>
 
@@ -131,11 +133,11 @@ export function AboutProject({ isDark }: AboutProjectProps) {
           borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
         }}
       >
-        <h3 className="text-2xl md:text-3xl mb-8 text-center" style={{ 
+        <h3 className="text-2xl md:text-3xl mb-8 text-center" style={{
           color: isDark ? '#FFC850' : '#143C50',
           fontWeight: 700
         }}>
-          История роста компании
+          {t('about.growthTitle')}
         </h3>
         
         <div className="relative">
@@ -270,17 +272,17 @@ export function AboutProject({ isDark }: AboutProjectProps) {
         transition={{ duration: 0.6 }}
         className="mb-8"
       >
-        <h3 className="text-2xl md:text-3xl mb-6 text-center" style={{ 
+        <h3 className="text-2xl md:text-3xl mb-6 text-center" style={{
           color: isDark ? '#FFC850' : '#143C50',
           fontWeight: 700
         }}>
-          Наш автопарк Toyota
+          {t('about.fleetTitle')}
         </h3>
-        <p className="text-center mb-8 max-w-2xl mx-auto" style={{ 
+        <p className="text-center mb-8 max-w-2xl mx-auto" style={{
           color: isDark ? '#FFFAF0' : '#143C50',
           opacity: 0.8
         }}>
-          Премиальные автомобили Toyota в отличном состоянии на живописных дорогах Таиланда
+          {t('about.fleetDesc')}
         </p>
       </motion.div>
 
@@ -306,7 +308,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
           <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
             <div className="text-white">
               <div className="text-2xl mb-1" style={{ fontWeight: 700 }}>Toyota Veloz</div>
-              <div className="text-sm opacity-90">Premium 7-seater • Идеально для семьи</div>
+              <div className="text-sm opacity-90">{t('about.velozDesc')}</div>
             </div>
           </div>
         </motion.div>
@@ -332,7 +334,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
           <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
             <div className="text-white">
               <div className="text-2xl mb-1" style={{ fontWeight: 700 }}>Toyota Yaris</div>
-              <div className="text-sm opacity-90">Компактный седан • Экономичный и надёжный</div>
+              <div className="text-sm opacity-90">{t('about.yarisDesc')}</div>
             </div>
           </div>
         </motion.div>

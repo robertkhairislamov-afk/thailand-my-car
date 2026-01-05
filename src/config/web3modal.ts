@@ -1,6 +1,9 @@
 import { createAppKit } from '@reown/appkit/react';
 import { EthersAdapter } from '@reown/appkit-adapter-ethers';
 
+// Don't initialize Web3Modal on admin pages
+const isAdminRoute = window.location.pathname.includes('/admin');
+
 // Reown Project ID
 const projectId = 'af4323dd20b8828548cb0243ab222847';
 
@@ -49,37 +52,58 @@ const metadata = {
 const ethersAdapter = new EthersAdapter();
 
 // Initialize AppKit - ONLY EVM WALLETS
-createAppKit({
-  adapters: [ethersAdapter],
-  networks,
-  projectId,
-  metadata,
-  // Disable ALL social/email features
-  features: {
-    email: false,
-    socials: false,
-    emailShowWallets: false,
-    onramp: false,
-    analytics: false,
-  },
-  // Theme
-  themeMode: 'dark',
-  themeVariables: {
-    '--w3m-accent': '#009696',
-    '--w3m-color-mix': '#143C50',
-    '--w3m-color-mix-strength': 20,
-    '--w3m-border-radius-master': '12px'
-  },
-  // Featured wallets
-  featuredWalletIds: [
-    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
-    'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-    '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
-    '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Bitget
-    '8a0ee50d1f22f6651afcae7eb4253e52a3310b90af5daef78a8c4929a9bb99d4', // Binance Web3
-  ],
-  allWallets: 'SHOW',
-});
+try {
+  createAppKit({
+    adapters: [ethersAdapter],
+    networks,
+    projectId,
+    metadata,
+    // Enable social login for traditional investors
+    features: {
+      email: true,
+      socials: ['google', 'apple'],
+      emailShowWallets: true,  // Show wallets after email
+      collapseWallets: true,   // Collapse wallets, show email/socials first
+      onramp: false,
+      swaps: false,
+    },
+    // Theme
+    themeMode: 'dark',
+    themeVariables: {
+      '--w3m-accent': '#009696',
+      '--w3m-color-mix': '#143C50',
+      '--w3m-color-mix-strength': 20,
+      '--w3m-border-radius-master': '12px'
+    },
+    // Featured wallets
+    featuredWalletIds: [
+      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+      '971e689d0a5be527bac79629b4ee9b925e82208e5168b733496a09c0faed0709', // OKX Wallet
+      '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
+      '8a0ee50d1f22f6651afcae7eb4253e52a3310b90af5daef78a8c4929a9bb99d4', // Binance Web3
+      '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Bitget
+      'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
+    ],
+    allWallets: 'SHOW',
+    // Disable WalletConnect relay if causing issues
+    enableWalletConnect: true,
+  });
+} catch (error) {
+  console.error('Failed to initialize AppKit:', error);
+}
+
+// Disconnect wallet on admin pages to prevent network switch prompts
+if (isAdminRoute) {
+  // Clear any stored wallet connection for admin pages
+  try {
+    localStorage.removeItem('wagmi.wallet');
+    localStorage.removeItem('wagmi.connected');
+    localStorage.removeItem('wagmi.store');
+    localStorage.removeItem('@appkit/connected_connector');
+    localStorage.removeItem('@appkit/active_caip_network_id');
+  } catch (e) {
+    // Ignore errors
+  }
+}
 
 export { projectId, bscMainnet, bscTestnet, IS_TESTNET };

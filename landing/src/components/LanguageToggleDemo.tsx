@@ -94,7 +94,7 @@ export function LanguageToggleDemo() {
             {/* Features */}
             <div className="rounded-xl border border-white/20 bg-white/10 p-6 backdrop-blur-md">
               <h3 className="mb-4 text-white" style={{ fontSize: '18px', fontWeight: 600 }}>
-                ✨ Особенности
+                Особенности
               </h3>
               <ul className="space-y-2 text-white/80" style={{ fontSize: '14px' }}>
                 <li>• Spring анимация при переключении (react-spring)</li>
@@ -109,7 +109,7 @@ export function LanguageToggleDemo() {
             {/* Usage */}
             <div className="rounded-xl border border-white/20 bg-white/10 p-6 backdrop-blur-md">
               <h3 className="mb-4 text-white" style={{ fontSize: '18px', fontWeight: 600 }}>
-                📝 Использование с контекстом
+                Использование с контекстом
               </h3>
               <code className="block rounded-md bg-black/30 p-4 text-white/80" style={{ fontSize: '13px', whiteSpace: 'pre-wrap' }}>
 {`import { useLanguage } from './LanguageContext';

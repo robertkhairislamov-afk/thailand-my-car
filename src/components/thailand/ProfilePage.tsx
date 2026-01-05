@@ -8,6 +8,10 @@ import {
   Percent, ArrowDownCircle, Lock, Unlock, X
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useLanguage } from '../../contexts/LanguageContext';
+
+const IS_TESTNET = import.meta.env.VITE_BSC_TESTNET === 'true';
+const NETWORK: 'mainnet' | 'testnet' = IS_TESTNET ? 'testnet' : 'mainnet';
 
 interface ProfilePageProps {
   walletAddress: string | null;
@@ -57,6 +61,7 @@ interface Investment {
 }
 
 export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePageProps) {
+  const { t, language } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -95,16 +100,24 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
       const token = localStorage.getItem('auth_token');
 
       if (!token) {
-        setError('Please connect your wallet first');
+        setError('wallet_not_connected');
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/profile`, {
+      const response = await fetch(`${API_URL}/api/profile?network=${NETWORK}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      if (response.status === 401 || response.status === 403) {
+        // Token expired or invalid - clear it and show reconnect message
+        localStorage.removeItem('auth_token');
+        setError('session_expired');
+        setLoading(false);
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch profile');
@@ -125,7 +138,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
         bio: data.profile.bio || ''
       });
     } catch (err) {
-      setError('Failed to load profile');
+      setError('load_failed');
       console.error(err);
     } finally {
       setLoading(false);
@@ -148,23 +161,23 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
 
     setWithdrawing(true);
     try {
-      const response = await api.requestWithdrawal(withdrawalModal.id);
+      const response = await api.requestWithdrawal(withdrawalModal.id, walletAddress || undefined);
       if (response.data?.success) {
-        setSuccess('Запрос на вывод отправлен! Администратор свяжется с вами.');
+        setSuccess(t('profile.withdrawalSent'));
         setWithdrawalModal(null);
         fetchInvestments(); // Refresh investments
       } else {
-        setError(response.error || 'Ошибка при отправке запроса');
+        setError(response.error || t('profile.withdrawalError'));
       }
     } catch (err) {
-      setError('Ошибка при отправке запроса');
+      setError(t('profile.withdrawalError'));
     } finally {
       setWithdrawing(false);
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
+    return new Date(dateString).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric'
@@ -173,12 +186,12 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      pending: 'Ожидает',
-      pending_confirmation: 'На проверке',
-      active: 'Активна',
-      withdrawal_requested: 'Запрос на вывод',
-      completed: 'Завершена',
-      cancelled: 'Отменена'
+      pending: t('profile.statusPending'),
+      pending_confirmation: t('profile.statusPendingConfirm'),
+      active: t('profile.statusActive'),
+      withdrawal_requested: t('profile.statusWithdrawalRequested'),
+      completed: t('profile.statusCompleted'),
+      cancelled: t('profile.statusCancelled')
     };
     return labels[status] || status;
   };
@@ -220,7 +233,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
 
       const data = await response.json();
       setProfile(data.profile);
-      setSuccess('Profile updated successfully!');
+      setSuccess(t('profile.updateSuccess'));
 
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
@@ -246,8 +259,8 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <Wallet className="h-16 w-16 mx-auto mb-4" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
-          <h2 className="text-2xl font-bold mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Connect Your Wallet</h2>
-          <p style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>Please connect your wallet to view your profile</p>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('profile.connectWallet')}</h2>
+          <p style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>{t('profile.connectWalletDesc')}</p>
         </div>
       </div>
     );
@@ -271,7 +284,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
           style={{ color: isDark ? '#FFFAF0' : '#143C50' }}
         >
           <ChevronLeft className="h-5 w-5" />
-          <span>Назад</span>
+          <span>{t('profile.back')}</span>
         </button>
 
         {/* Header */}
@@ -287,7 +300,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">
-                {formData.name || 'Ваш профиль'}
+                {formData.name || t('profile.yourProfile')}
               </h1>
               <p className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.9)' }}>
                 <Wallet className="h-4 w-4" />
@@ -295,7 +308,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               </p>
               {profile && (
                 <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Участник с {formatDate(profile.createdAt)}
+                  {t('profile.memberSince')} {formatDate(profile.createdAt)}
                 </p>
               )}
             </div>
@@ -318,7 +331,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <DollarSign className="h-6 w-6 mb-2" style={{ color: '#009696' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Инвестировано</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.totalInvested')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>${stats.totalInvestedUsdt.toLocaleString()}</p>
             </div>
             <div
@@ -329,7 +342,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <TrendingUp className="h-6 w-6 mb-2" style={{ color: '#28B48C' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Инвестиций</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.investments')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{stats.totalInvestments}</p>
             </div>
             <div
@@ -340,7 +353,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <Clock className="h-6 w-6 mb-2" style={{ color: '#FFC850' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Активных</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.activeInvestments')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{stats.activeInvestments}</p>
             </div>
             <div
@@ -351,7 +364,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <DollarSign className="h-6 w-6 mb-2" style={{ color: '#009696' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>В батах</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.inBaht')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>฿{stats.totalInvestedBaht.toLocaleString()}</p>
             </div>
           </motion.div>
@@ -362,10 +375,45 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-500/10 border border-red-500 text-red-400 px-4 py-3 rounded-xl mb-6 flex items-center gap-2"
+            className="bg-red-500/10 border border-red-500 text-red-400 px-4 py-3 rounded-xl mb-6"
           >
-            <AlertCircle className="h-5 w-5" />
-            {error}
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <div>
+                {error === 'session_expired' && (
+                  <>
+                    <p className="font-semibold mb-1">{t('profile.sessionExpiredTitle')}</p>
+                    <p className="text-sm opacity-80">
+                      {t('profile.sessionExpiredDesc')}
+                    </p>
+                    <ol className="text-sm opacity-80 mt-2 list-decimal list-inside space-y-1">
+                      <li>{t('profile.sessionExpiredStep1')}</li>
+                      <li>{t('profile.sessionExpiredStep2')}</li>
+                      <li>{t('profile.sessionExpiredStep3')}</li>
+                    </ol>
+                  </>
+                )}
+                {error === 'wallet_not_connected' && (
+                  <>
+                    <p className="font-semibold mb-1">{t('profile.walletNotConnectedTitle')}</p>
+                    <p className="text-sm opacity-80">
+                      {t('profile.walletNotConnectedDesc')}
+                    </p>
+                  </>
+                )}
+                {error === 'load_failed' && (
+                  <>
+                    <p className="font-semibold mb-1">{t('profile.loadFailedTitle')}</p>
+                    <p className="text-sm opacity-80">
+                      {t('profile.loadFailedDesc')}
+                    </p>
+                  </>
+                )}
+                {!['session_expired', 'wallet_not_connected', 'load_failed'].includes(error) && (
+                  <p>{error}</p>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -392,21 +440,21 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
             borderColor: isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'
           }}
         >
-          <h2 className="text-xl font-bold mb-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Личная информация</h2>
+          <h2 className="text-xl font-bold mb-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('profile.personalInfo')}</h2>
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Name */}
             <div>
               <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <User className="h-4 w-4 inline mr-2" />
-                Имя
+                {t('profile.name')}
               </label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Введите ваше имя"
+                placeholder={t('profile.namePlaceholder')}
                 className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
                 style={{
                   background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
@@ -545,13 +593,13 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
             {/* Bio */}
             <div className="md:col-span-2">
               <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
-                О себе
+                {t('profile.bio')}
               </label>
               <textarea
                 name="bio"
                 value={formData.bio}
                 onChange={handleChange}
-                placeholder="Расскажите о себе..."
+                placeholder={t('profile.bioPlaceholder')}
                 rows={3}
                 className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696] resize-none"
                 style={{
@@ -577,12 +625,12 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               {saving ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Сохранение...
+                  {t('profile.saving')}
                 </>
               ) : (
                 <>
                   <Save className="h-5 w-5" />
-                  Сохранить профиль
+                  {t('profile.saveProfile')}
                 </>
               )}
             </button>

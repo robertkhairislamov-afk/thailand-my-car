@@ -20,7 +20,12 @@ import {
   Ban,
   ArrowLeft,
   ExternalLink,
-  Copy
+  Copy,
+  Wallet,
+  Upload,
+  X,
+  Banknote,
+  Bitcoin
 } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -29,8 +34,9 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type TabType = 'dashboard' | 'investments' | 'users' | 'messages';
+type TabType = 'dashboard' | 'investments' | 'withdrawals' | 'users' | 'messages';
 type NetworkType = 'mainnet' | 'testnet';
+type ModalType = 'crypto' | 'bank' | 'reject' | null;
 
 export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -42,6 +48,16 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+
+  // Withdrawals state
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<any>(null);
+  const [withdrawalModal, setWithdrawalModal] = useState<ModalType>(null);
+  const [txHash, setTxHash] = useState('');
+  const [bankDetails, setBankDetails] = useState('');
+  const [bankNotes, setBankNotes] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -70,6 +86,11 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
       if (response.data) {
         setUsers(response.data.users || []);
       }
+    } else if (activeTab === 'withdrawals') {
+      const response = await api.getAdminWithdrawals({ network });
+      if (response.data) {
+        setWithdrawals(response.data.withdrawals || []);
+      }
     }
 
     setLoading(false);
@@ -94,6 +115,7 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
   const tabs = [
     { id: 'dashboard' as TabType, label: 'Дашборд', icon: LayoutDashboard },
     { id: 'investments' as TabType, label: 'Инвестиции', icon: TrendingUp },
+    { id: 'withdrawals' as TabType, label: 'Заявки на вывод', icon: Wallet, badge: withdrawals.length },
     { id: 'users' as TabType, label: 'Пользователи', icon: Users },
     { id: 'messages' as TabType, label: 'Сообщения', icon: MessageSquare },
   ];
@@ -112,6 +134,7 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
       case 'completed': return 'bg-blue-500/20 text-blue-400 border-blue-500/40';
       case 'rejected': return 'bg-red-500/20 text-red-400 border-red-500/40';
       case 'cancelled': return 'bg-red-500/20 text-red-400 border-red-500/40';
+      case 'withdrawal_requested': return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
       case 'new': return 'bg-purple-500/20 text-purple-400 border-purple-500/40';
       case 'read': return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
@@ -126,11 +149,79 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
       case 'completed': return 'Завершена';
       case 'rejected': return 'Отклонена';
       case 'cancelled': return 'Отменена';
+      case 'withdrawal_requested': return 'Запрос на вывод';
       case 'new': return 'Новое';
       case 'read': return 'Прочитано';
       case 'replied': return 'Отвечено';
       default: return status;
     }
+  };
+
+  // Withdrawal handlers
+  const openWithdrawalModal = (withdrawal: any, modalType: ModalType) => {
+    setSelectedWithdrawal(withdrawal);
+    setWithdrawalModal(modalType);
+    setTxHash('');
+    setBankDetails('');
+    setBankNotes('');
+    setRejectReason('');
+  };
+
+  const closeWithdrawalModal = () => {
+    setWithdrawalModal(null);
+    setSelectedWithdrawal(null);
+    setTxHash('');
+    setBankDetails('');
+    setBankNotes('');
+    setRejectReason('');
+  };
+
+  const handleProcessCrypto = async () => {
+    if (!selectedWithdrawal || !txHash.trim()) return;
+    setProcessingWithdrawal(true);
+    try {
+      const response = await api.processWithdrawalCrypto(selectedWithdrawal.id, txHash.trim());
+      if (response.data?.success) {
+        closeWithdrawalModal();
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Process crypto error:', error);
+    }
+    setProcessingWithdrawal(false);
+  };
+
+  const handleProcessBank = async () => {
+    if (!selectedWithdrawal) return;
+    setProcessingWithdrawal(true);
+    try {
+      const response = await api.processWithdrawalBank(selectedWithdrawal.id, {
+        bankDetails: bankDetails.trim() || undefined,
+        notes: bankNotes.trim() || undefined,
+      });
+      if (response.data?.success) {
+        closeWithdrawalModal();
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Process bank error:', error);
+    }
+    setProcessingWithdrawal(false);
+  };
+
+  const handleRejectWithdrawal = async () => {
+    if (!selectedWithdrawal) return;
+    setProcessingWithdrawal(true);
+    try {
+      const response = await api.rejectWithdrawal(selectedWithdrawal.id, rejectReason.trim() || undefined);
+      if (response.data?.success) {
+        closeWithdrawalModal();
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Reject withdrawal error:', error);
+    }
+    setProcessingWithdrawal(false);
   };
 
   return (
@@ -219,6 +310,11 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
+                {'badge' in tab && tab.badge > 0 && (
+                  <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500 text-white">
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -841,9 +937,352 @@ export function AdminDashboard({ admin, onLogout }: AdminDashboardProps) {
                 )}
               </div>
             )}
+
+            {/* Withdrawals Tab */}
+            {activeTab === 'withdrawals' && (
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
+                <div className="p-6 border-b border-white/10">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-orange-400" />
+                    Заявки на вывод средств
+                  </h3>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Обработайте запросы инвесторов на вывод средств
+                  </p>
+                </div>
+                {withdrawals.length > 0 ? (
+                  <div className="divide-y divide-white/5">
+                    {withdrawals.map((wd, index) => (
+                      <div key={wd.id} className="p-6 hover:bg-white/5">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <p className="text-white font-semibold">Заявка #{index + 1}</p>
+                              <span className={`inline-block px-2 py-1 rounded-lg text-xs border ${getStatusColor(wd.status)}`}>
+                                {getStatusLabel(wd.status)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mb-2">ID: {wd.id}</p>
+                            <div className="p-2 bg-white/5 rounded-lg mb-2">
+                              <p className="text-xs text-gray-400 mb-1">Кошелёк инвестора:</p>
+                              <code className="text-sm font-mono text-white break-all">
+                                {wd.wallet_address}
+                              </code>
+                            </div>
+                            {wd.user_email && (
+                              <p className="text-sm text-gray-500">{wd.user_email}</p>
+                            )}
+                          </div>
+                          <div className="text-right ml-4 flex-shrink-0">
+                            <p className="text-2xl font-bold text-white">
+                              ${parseFloat(wd.return_amount || wd.amount_usdt || 0).toLocaleString()}
+                            </p>
+                            <p className="text-sm text-gray-400">к выплате</p>
+                          </div>
+                        </div>
+
+                        {/* Withdrawal Type Badge */}
+                        {wd.withdrawal_type && (
+                          <div className="mb-4">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                              wd.withdrawal_type === 'earnings'
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                : wd.withdrawal_type === 'principal'
+                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                            }`}>
+                              {wd.withdrawal_type === 'earnings' && 'Вывод процентов'}
+                              {wd.withdrawal_type === 'principal' && 'Вывод тела депозита'}
+                              {wd.withdrawal_type === 'all' && 'Полный вывод (тело + проценты)'}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Withdrawal Wallet */}
+                        {wd.withdrawal_wallet && (
+                          <div className="mb-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs text-orange-400 font-semibold">КУДА ОТПРАВИТЬ (указан инвестором)</p>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => copyToClipboard(wd.withdrawal_wallet)}
+                                  className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors text-xs text-gray-300 flex items-center gap-1"
+                                >
+                                  <Copy className="w-3 h-3" /> Копировать
+                                </button>
+                                <a
+                                  href={`https://bscscan.com/address/${wd.withdrawal_wallet}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors text-xs text-[#009696] flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> BscScan
+                                </a>
+                              </div>
+                            </div>
+                            <code className="block text-white font-mono text-sm break-all bg-black/20 p-2 rounded select-all">
+                              {wd.withdrawal_wallet}
+                            </code>
+                          </div>
+                        )}
+
+                        {/* Investment Details */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-white/5 rounded-xl">
+                          <div>
+                            <p className="text-xs text-gray-400">Инвестировано</p>
+                            <p className="text-white font-semibold">${parseFloat(wd.amount_usdt || 0).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Заработано</p>
+                            <p className="text-green-400 font-semibold">+${parseFloat(wd.staking_earned || 0).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Комиссия</p>
+                            <p className="text-red-400 font-semibold">-${parseFloat(wd.early_withdrawal_fee || 0).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Тип инвестиции</p>
+                            <p className="text-white">{wd.tier_type === 'car_share' ? 'Доля в авто' : 'Стейкинг'}</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            onClick={() => openWithdrawalModal(wd, 'crypto')}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#009696]/20 text-[#28B48C] hover:bg-[#009696]/30 transition-all font-semibold"
+                          >
+                            <Bitcoin className="w-4 h-4" />
+                            Выплатить крипто
+                          </button>
+                          <button
+                            onClick={() => openWithdrawalModal(wd, 'bank')}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all font-semibold"
+                          >
+                            <Banknote className="w-4 h-4" />
+                            Банковский перевод
+                          </button>
+                          <button
+                            onClick={() => openWithdrawalModal(wd, 'reject')}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all font-semibold"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Отклонить
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <Wallet className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">Нет заявок на вывод</p>
+                    <p className="text-gray-500 text-sm mt-1">Все запросы обработаны</p>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
+
+      {/* Withdrawal Modals */}
+      {withdrawalModal && selectedWithdrawal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={closeWithdrawalModal}>
+          <div className="bg-[#1a3a4a] rounded-2xl border border-white/10 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="p-5 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                {withdrawalModal === 'crypto' && <><Bitcoin className="w-5 h-5 text-[#28B48C]" /> Выплата крипто</>}
+                {withdrawalModal === 'bank' && <><Banknote className="w-5 h-5 text-blue-400" /> Банк перевод</>}
+                {withdrawalModal === 'reject' && <><XCircle className="w-5 h-5 text-red-400" /> Отклонить</>}
+              </h3>
+              <button
+                onClick={closeWithdrawalModal}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 space-y-4">
+              {/* Investment Info */}
+              <div className="p-4 bg-white/5 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Инвестиция</span>
+                  <code className="text-xs text-gray-500 font-mono">#{selectedWithdrawal.id}</code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Кошелёк</span>
+                  <button
+                    onClick={() => copyToClipboard(selectedWithdrawal.wallet_address || '')}
+                    className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors text-xs text-gray-300 flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" /> Копировать
+                  </button>
+                </div>
+                <code 
+                  className="block text-white font-mono text-sm break-all bg-black/20 p-3 rounded select-all cursor-pointer hover:bg-black/30 transition-colors" 
+                  onClick={() => copyToClipboard(selectedWithdrawal.wallet_address || '')}
+                  title="Нажмите чтобы скопировать"
+                >
+                  {selectedWithdrawal.wallet_address || 'Не указан'}
+                </code>
+                {selectedWithdrawal.withdrawal_type && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Тип вывода</span>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      selectedWithdrawal.withdrawal_type === 'earnings'
+                        ? 'bg-green-500/20 text-green-400'
+                        : selectedWithdrawal.withdrawal_type === 'principal'
+                          ? 'bg-blue-500/20 text-blue-400'
+                          : 'bg-purple-500/20 text-purple-400'
+                    }`}>
+                      {selectedWithdrawal.withdrawal_type === 'earnings' && 'Проценты'}
+                      {selectedWithdrawal.withdrawal_type === 'principal' && 'Тело депозита'}
+                      {selectedWithdrawal.withdrawal_type === 'all' && 'Всё'}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Сумма к выплате</span>
+                  <span className="text-2xl font-bold text-green-400">
+                    ${parseFloat(selectedWithdrawal.return_amount || selectedWithdrawal.amount_usdt || 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Withdrawal Wallet - КУДА ОТПРАВИТЬ */}
+              <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-orange-400 font-semibold">КУДА ОТПРАВИТЬ USDT (BEP20)</p>
+                  <button
+                    onClick={() => copyToClipboard(selectedWithdrawal.withdrawal_wallet || selectedWithdrawal.wallet_address || '')}
+                    className="px-3 py-1 rounded-lg bg-orange-500/30 hover:bg-orange-500/50 transition-colors text-xs text-orange-400 flex items-center gap-1"
+                  >
+                    {copied ? <><CheckCircle className="w-3 h-3" /> Скопировано</> : <><Copy className="w-3 h-3" /> Копировать</>}
+                  </button>
+                </div>
+                <code className="block text-white font-mono text-xs break-all bg-black/30 p-3 rounded select-all">
+                  {selectedWithdrawal.withdrawal_wallet || selectedWithdrawal.wallet_address || 'Не указан'}
+                </code>
+              </div>
+
+              {/* Crypto Modal Form */}
+              {withdrawalModal === 'crypto' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">
+                      Transaction Hash (TX Hash) *
+                    </label>
+                    <input
+                      type="text"
+                      value={txHash}
+                      onChange={(e) => setTxHash(e.target.value)}
+                      placeholder="0x..."
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-[#009696]"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Введите хэш транзакции отправки USDT на кошелёк инвестора
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleProcessCrypto}
+                    disabled={!txHash.trim() || processingWithdrawal}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#009696] text-white hover:bg-[#00b8b8] transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingWithdrawal ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-5 h-5" />
+                    )}
+                    Подтвердить выплату
+                  </button>
+                </div>
+              )}
+
+              {/* Bank Modal Form */}
+              {withdrawalModal === 'bank' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">
+                      Реквизиты перевода / Номер операции
+                    </label>
+                    <input
+                      type="text"
+                      value={bankDetails}
+                      onChange={(e) => setBankDetails(e.target.value)}
+                      placeholder="Номер операции, реквизиты..."
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#009696]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">
+                      Комментарий (опционально)
+                    </label>
+                    <textarea
+                      value={bankNotes}
+                      onChange={(e) => setBankNotes(e.target.value)}
+                      placeholder="Дополнительная информация о переводе..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#009696] resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleProcessBank}
+                    disabled={processingWithdrawal}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingWithdrawal ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-5 h-5" />
+                    )}
+                    Подтвердить перевод
+                  </button>
+                </div>
+              )}
+
+              {/* Reject Modal Form */}
+              {withdrawalModal === 'reject' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                    <p className="text-red-400 text-sm">
+                      Заявка будет отклонена, а инвестиция вернётся в статус "Активна".
+                      Инвестор сможет подать заявку повторно.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">
+                      Причина отклонения (опционально)
+                    </label>
+                    <textarea
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="Укажите причину отклонения..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-red-500 resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleRejectWithdrawal}
+                    disabled={processingWithdrawal}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingWithdrawal ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <XCircle className="w-5 h-5" />
+                    )}
+                    Отклонить заявку
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

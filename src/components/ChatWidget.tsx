@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, Minimize2, User, Bot, Headphones } from 'lucide
 import { motion, AnimatePresence } from 'motion/react';
 import agentAvatar from 'figma:asset/e1e085ae75a2749b061ca9a2d4be120e5d13174a.png';
 import api from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Message {
   id: string;
@@ -28,6 +29,7 @@ interface ChatWidgetProps {
 }
 
 export function ChatWidget({ isDark }: ChatWidgetProps) {
+  const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -40,10 +42,50 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [waitingForAdmin, setWaitingForAdmin] = useState(false);
   const [lastMessageTime, setLastMessageTime] = useState<string | null>(null);
+  const [isChatClosed, setIsChatClosed] = useState(false);
+  const [isClosingAnimation, setIsClosingAnimation] = useState(false);
+
+  // Анимация закрытия чата
+  useEffect(() => {
+    if (isChatClosed && !isClosingAnimation) {
+      // Ждём немного чтобы пользователь увидел сообщение
+      const timer = setTimeout(() => {
+        setIsClosingAnimation(true);
+        
+        // После анимации сбрасываем чат
+        setTimeout(() => {
+          setIsOpen(false);
+          setIsClosingAnimation(false);
+          setIsChatClosed(false);
+          setMessages([]);
+          setSessionId("");
+          setIsRegistered(false);
+          setUserName("");
+          setUserEmail("");
+          setWaitingForAdmin(false);
+          setUnreadCount(0);
+          localStorage.removeItem("chatSession");
+        }, 600);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isChatClosed, isClosingAnimation]);
+  const [profanityError, setProfanityError] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get wallet from localStorage
+  const getWalletAddress = (): string | undefined => {
+    try {
+      const wallet = localStorage.getItem("wallet_address");
+      return wallet || undefined;
+    } catch {
+      return undefined;
+    }
+  };
 
   // Load chat session from localStorage
   useEffect(() => {
@@ -83,13 +125,20 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
 
   // Poll for admin messages when waiting
   const pollForMessages = useCallback(async () => {
-    if (!sessionId || !waitingForAdmin) return;
+    // Проверяем статус и сообщения всегда когда есть активная сессия
+    if (!sessionId) return;
 
     try {
       const result = await api.getChatMessages(sessionId, lastMessageTime || undefined);
+      
+      // Проверяем статус сессии
+      if (result.data?.sessionStatus === "closed") {
+        setIsChatClosed(true);
+        setWaitingForAdmin(false);
+      }
       if (result.data?.messages && result.data.messages.length > 0) {
         const newAdminMsgs = result.data.messages.filter(
-          (m: any) => m.sender === 'admin' && !messages.some(existing => existing.id === m.id)
+          (m: any) => (m.sender === 'admin' || m.sender === 'system') && !messages.some(existing => existing.id === m.id)
         );
 
         if (newAdminMsgs.length > 0) {
@@ -118,8 +167,10 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
 
   // Start/stop polling
   useEffect(() => {
-    if (waitingForAdmin && sessionId) {
-      pollingRef.current = setInterval(pollForMessages, 5000); // Poll every 5 seconds
+    // Polling всегда когда есть сессия (чтобы видеть закрытие чата)
+    if (sessionId && isRegistered) {
+      const interval = waitingForAdmin ? 5000 : 15000; // Чаще когда ждём админа
+      pollingRef.current = setInterval(pollForMessages, interval);
     }
 
     return () => {
@@ -128,7 +179,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
         pollingRef.current = null;
       }
     };
-  }, [waitingForAdmin, sessionId, pollForMessages]);
+  }, [waitingForAdmin, sessionId, isRegistered, pollForMessages]);
 
   // Save session to localStorage and sync with admin
   const saveSession = (msgs: Message[]) => {
@@ -360,7 +411,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
       // Welcome message
       const welcomeMsg: Message = {
         id: `msg_${Date.now()}`,
-        text: `Здравствуйте, ${userName}! 👋\n\nМеня зовут Мира, я помощник Thailand My Car.\n\nС радостью отвечу на ваши вопросы об инвестициях, доходности, криптоплатежах и нашем автопарке!\n\nЕсли хотите связаться с менеджером - нажмите кнопку 🎧 внизу.\n\nЧем могу помочь? 😊`,
+        text: t('chat.welcomeMessage', { name: userName }),
         sender: 'agent',
         timestamp: new Date(),
         read: true
@@ -384,7 +435,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
 
       const systemMsg: Message = {
         id: `msg_${Date.now()}`,
-        text: '🎧 Запрос отправлен! Менеджер скоро подключится к чату. Пожалуйста, подождите...',
+        text: t('chat.managerRequestSent'),
         sender: 'agent',
         timestamp: new Date(),
         read: true
@@ -420,6 +471,9 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    // Clear profanity error
+    setProfanityError(false);
+
     const userMsg: Message = {
       id: `msg_${Date.now()}`,
       text: inputValue,
@@ -436,12 +490,26 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
     // Save user message to backend
     if (sessionId) {
       try {
-        await api.sendChatMessage({
+        const result = await api.sendChatMessage({
           sessionId,
           sender: 'user',
           senderName: userName,
-          message: messageText
+          message: messageText,
+          userWallet: getWalletAddress()
         });
+        // Check for profanity error
+        if (result.error === "profanity_detected" || result.error?.includes("profanity")) {
+        
+        // Проверка на закрытый чат
+        if (result.error === "chat_closed") {
+          setIsChatClosed(true);
+          return;
+        }
+          setMessages(messages);
+          setProfanityError(true);
+          setTimeout(() => setProfanityError(false), 5000);
+          return;
+        }
       } catch (error) {
         console.error('Failed to save message:', error);
       }
@@ -509,15 +577,15 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ 
+            animate={isClosingAnimation ? { opacity: 0, scale: 0.1, y: 100, x: 50 } : { 
               opacity: 1, 
               scale: isMinimized ? 0.95 : 1, 
               y: 0,
-              height: isMinimized ? '60px' : '600px'
+              height: isMinimized ? '60px' : 'min(600px, calc(100vh - 120px))'
             }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="absolute bottom-20 right-0 w-96 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="absolute bottom-20 right-0 w-[calc(100vw-32px)] sm:w-96 max-w-[384px] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             style={{
               background: isDark 
                 ? 'linear-gradient(135deg, rgba(20,60,80,0.98) 0%, rgba(10,31,45,0.98) 100%)'
@@ -544,9 +612,9 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                   />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Мира</h3>
+                  <h3 className="font-semibold">{t('chat.agentName')}</h3>
                   <p className="text-xs opacity-80">
-                    {isTyping ? 'Печатает...' : 'Консультант • Онлайн 24/7'}
+                    {isTyping ? t('chat.typing') : t('chat.consultantOnline')}
                   </p>
                 </div>
               </div>
@@ -555,14 +623,14 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm('Завершить чат? История будет удалена.')) {
+                      if (confirm(t('chat.endChatConfirm'))) {
                         handleEndChat();
                       }
                     }}
                     className="px-2 py-1 text-xs hover:bg-white/20 rounded transition-colors border border-white/30"
-                    title="Завершить чат"
+                    title={t('chat.endChat')}
                   >
-                    Завершить
+                    {t('chat.end')}
                   </button>
                 )}
                 <button
@@ -592,34 +660,34 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                 {!isRegistered ? (
                   <div className="flex-1 p-6 flex flex-col justify-center">
                     <div className="text-center mb-6">
-                      <div 
+                      <div
                         className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
                         style={{ background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)' }}
                       >
                         <MessageCircle className="w-8 h-8 text-white" />
                       </div>
-                      <h3 
+                      <h3
                         className="text-xl mb-2"
                         style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}
                       >
-                        Начать чат
+                        {t('chat.startChat')}
                       </h3>
                       <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                        Представьтесь, чтобы мы могли помочь вам лучше
+                        {t('chat.introduceYourself')}
                       </p>
                     </div>
 
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm mb-2 opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          Ваше имя *
+                          {t('chat.yourName')} *
                         </label>
                         <input
                           type="text"
                           value={userName}
                           onChange={(e) => setUserName(e.target.value)}
                           onKeyPress={handleKeyPress}
-                          placeholder="Как к вам обращаться?"
+                          placeholder={t('chat.namePlaceholder')}
                           className="w-full px-4 py-3 rounded-xl outline-none transition-all"
                           style={{
                             background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
@@ -632,7 +700,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
 
                       <div>
                         <label className="block text-sm mb-2 opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          Email (опционально)
+                          {t('chat.emailOptional')}
                         </label>
                         <input
                           type="email"
@@ -654,13 +722,13 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                         disabled={!userName.trim()}
                         className="w-full py-3 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
                         style={{
-                          background: userName.trim() 
+                          background: userName.trim()
                             ? 'linear-gradient(135deg, #28B48C 0%, #009696 100%)'
                             : 'rgba(128,128,128,0.3)',
                           color: '#FFFAF0'
                         }}
                       >
-                        Начать чат
+                        {t('chat.startChat')}
                       </button>
                     </div>
                   </div>
@@ -677,7 +745,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                         <motion.div
                           key={message.id}
                           initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
+                          animate={isClosingAnimation ? { opacity: 0, scale: 0.1, y: 100, x: 50 } : { opacity: 1, y: 0 }}
                           className={`mb-4 flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div className={`flex gap-2 max-w-[80%] ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -718,7 +786,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                                 <p className="text-sm whitespace-pre-line">{message.text}</p>
                               </div>
                               <p className="text-xs opacity-50 mt-1 px-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                                {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                                {message.timestamp.toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                               </p>
                             </div>
                           </div>
@@ -729,7 +797,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                       {isTyping && (
                         <motion.div
                           initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
+                          animate={isClosingAnimation ? { opacity: 0, scale: 0.1, y: 100, x: 50 } : { opacity: 1 }}
                           className="flex gap-2 mb-4"
                         >
                           <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-teal-500/30 flex-shrink-0">
@@ -748,19 +816,19 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                             <motion.div
                               className="w-2 h-2 rounded-full"
                               style={{ background: '#009696' }}
-                              animate={{ scale: [1, 1.2, 1] }}
+                              animate={isClosingAnimation ? { opacity: 0, scale: 0.1, y: 100, x: 50 } : { scale: [1, 1.2, 1] }}
                               transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
                             />
                             <motion.div
                               className="w-2 h-2 rounded-full"
                               style={{ background: '#009696' }}
-                              animate={{ scale: [1, 1.2, 1] }}
+                              animate={isClosingAnimation ? { opacity: 0, scale: 0.1, y: 100, x: 50 } : { scale: [1, 1.2, 1] }}
                               transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
                             />
                             <motion.div
                               className="w-2 h-2 rounded-full"
                               style={{ background: '#009696' }}
-                              animate={{ scale: [1, 1.2, 1] }}
+                              animate={isClosingAnimation ? { opacity: 0, scale: 0.1, y: 100, x: 50 } : { scale: [1, 1.2, 1] }}
                               transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
                             />
                           </div>
@@ -789,7 +857,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                           }}
                         >
                           <Headphones className="w-4 h-4" />
-                          Связаться с менеджером
+                          {t('chat.contactManager')}
                         </button>
                       )}
 
@@ -801,18 +869,47 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                             color: isDark ? '#28B48C' : '#1a7a5a'
                           }}
                         >
-                          ⏳ Ожидание менеджера...
+                          {t('chat.waitingForManager')}
+                        </div>
+                      )}
+
+                      {/* Chat closed message */}
+                      {isChatClosed && (
+                        <div
+                          className="mb-3 py-3 px-4 rounded-xl text-sm text-center"
+                          style={{
+                            background: "rgba(40,180,140,0.15)",
+                            color: "#28B48C",
+                            border: "1px solid rgba(40,180,140,0.3)"
+                          }}
+                        >
+                          ✅ Чат завершён. Спасибо за обращение!
+                        </div>
+                      )}
+
+                      {/* Profanity error message */}
+                      {profanityError && (
+                        <div
+                          className="mb-3 py-2 px-4 rounded-xl text-sm text-center"
+                          style={{
+                            background: "rgba(255,68,68,0.15)",
+                            color: "#FF4444",
+                            border: "1px solid rgba(255,68,68,0.3)"
+                          }}
+                        >
+                          ⚠️ Сообщение содержит недопустимые выражения
                         </div>
                       )}
 
                       <div className="flex gap-2">
                         <input
+                          disabled={isChatClosed}
                           ref={inputRef}
                           type="text"
                           value={inputValue}
                           onChange={(e) => setInputValue(e.target.value)}
                           onKeyPress={handleKeyPress}
-                          placeholder={waitingForAdmin ? "Напишите менеджеру..." : "Напишите сообщение..."}
+                          placeholder={isChatClosed ? "Чат завершён" : (waitingForAdmin ? t("chat.writeToManager") : t("chat.writeMessage"))}
                           className="flex-1 px-4 py-3 rounded-xl outline-none transition-all"
                           style={{
                             background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
@@ -822,7 +919,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
                         />
                         <button
                           onClick={handleSendMessage}
-                          disabled={!inputValue.trim()}
+                          disabled={!inputValue.trim() || isChatClosed}
                           className="px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
                           style={{
                             background: inputValue.trim()
@@ -889,7 +986,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
         {!isOpen && unreadCount > 0 && (
           <motion.div
             initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
+            animate={isClosingAnimation ? { opacity: 0, scale: 0.1, y: 100, x: 50 } : { scale: 1 }}
             className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold"
             style={{
               background: '#FF4444',

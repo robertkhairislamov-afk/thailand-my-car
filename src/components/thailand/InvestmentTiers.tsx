@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, Clock, Award, Car, DollarSign, Loader2, Percent, AlertCircle, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../../services/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface InvestmentTiersProps {
   isDark: boolean;
@@ -19,6 +20,7 @@ interface TierData {
   return_percentage: string | null;
   features: string[];
   is_active: boolean;
+  tier_type?: string;
 }
 
 interface PlatformSettings {
@@ -52,7 +54,32 @@ function getIconForFeature(feature: string) {
   return Check;
 }
 
+// Feature translation keys mapping (Russian text -> translation key)
+const featureTranslationKeys: Record<string, string> = {
+  '2.5% в месяц (30% годовых)': 'tiers.feature.monthlyRate',
+  'Вывод в любой момент': 'tiers.feature.withdrawAnytime',
+  '5% комиссия при выводе до 6 мес': 'tiers.feature.earlyFee',
+  'Ежемесячное начисление процентов': 'tiers.feature.monthlyAccrual',
+  'Через 6 мес: +20% возврат ИЛИ ждать авто': 'tiers.feature.sixMonthChoice',
+  'Автомобиль в собственность после выплаты кредита': 'tiers.feature.carOwnership',
+  'Приоритет: кто первый - тот получает авто': 'tiers.feature.priority',
+  'Можно изменить выбор до закрытия кредита': 'tiers.feature.changeChoice',
+};
+
+// Tier name translation keys
+const tierNameKeys: Record<string, string> = {
+  'Стейкинг': 'tiers.tierName.staking',
+  'Доля в автомобиле': 'tiers.tierName.carShare',
+};
+
+// Tier description translation keys
+const tierDescriptionKeys: Record<string, string> = {
+  'Пассивный доход с гибкими условиями вывода': 'tiers.tierDesc.staking',
+  'Получите автомобиль в собственность или гарантированный возврат': 'tiers.tierDesc.carShare',
+};
+
 export function InvestmentTiers({ isDark, walletConnected, onInvest }: InvestmentTiersProps) {
+  const { t } = useLanguage();
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +111,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
     {
       color: '#FFC850',
       gradient: 'linear-gradient(135deg, #FFC850 0%, #009696 100%)',
-      badge: `${carsAvailable} авто осталось`
+      badge: `${carsAvailable} ${t('tiers.carsLeft')}`
     }
   ];
 
@@ -102,13 +129,13 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
             color: isDark ? '#FFC850' : '#143C50',
             fontWeight: 700
           }}>
-            Варианты участия
+            {t('tiers.title')}
           </h2>
           <p className="text-lg md:text-xl max-w-2xl mx-auto" style={{
             color: isDark ? '#FFFAF0' : '#143C50',
             opacity: 0.8
           }}>
-            Выберите подходящий вариант партнёрского займа
+            {t('tiers.subtitle')}
           </p>
         </motion.div>
       </div>
@@ -125,8 +152,14 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
             const minUsd = parseFloat(tier.min_investment_usd);
             const returnPct = tier.return_percentage ? parseFloat(tier.return_percentage) : null;
             const style = tierStyles[index % tierStyles.length];
-            const isStaking = tier.name.toLowerCase().includes('стейкинг');
-            const isCarShare = tier.name.toLowerCase().includes('авто');
+            const isStaking = tier.name.toLowerCase().includes('стейкинг') || tier.tier_type === 'staking' || index === 0;
+            const isCarShare = tier.name.toLowerCase().includes('авто') || tier.tier_type === 'car_share' || index === 1;
+
+            // Translate tier name and description
+            const tierNameKey = tierNameKeys[tier.name];
+            const tierDescKey = tierDescriptionKeys[tier.description];
+            const displayName = tierNameKey ? t(tierNameKey) : tier.name;
+            const displayDesc = tierDescKey ? t(tierDescKey) : tier.description;
 
             return (
               <motion.div
@@ -168,11 +201,11 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                       color: style.color,
                       fontWeight: 700
                     }}>
-                      {tier.name}
+                      {displayName}
                     </h3>
                   </div>
                   <p className="opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                    {tier.description}
+                    {displayDesc}
                   </p>
                 </div>
 
@@ -182,7 +215,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                   border: `1px solid ${isDark ? 'rgba(0, 150, 150, 0.2)' : 'rgba(0, 150, 150, 0.1)'}`
                 }}>
                   <div className="text-sm mb-2 opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                    {isStaking ? 'Минимальная инвестиция' : 'Полная стоимость автомобиля'}
+                    {isStaking ? t('tiers.minInvestment') : t('tiers.fullCost')}
                   </div>
                   <div className="text-3xl mb-1" style={{
                     color: isDark ? '#FFFAF0' : '#143C50',
@@ -201,7 +234,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                   border: `1px solid ${isDark ? 'rgba(255, 200, 80, 0.2)' : 'rgba(255, 200, 80, 0.1)'}`
                 }}>
                   <div className="text-sm mb-2 opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                    {isStaking ? 'Ожидаемая доходность (прогноз)' : 'Через 6 месяцев'}
+                    {isStaking ? t('tiers.expectedReturn') : t('tiers.after6months')}
                   </div>
                   {isStaking ? (
                     <>
@@ -210,35 +243,35 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                           color: '#FFC850',
                           fontWeight: 700
                         }}>
-                          до {settings?.staking_monthly_rate || '2.5'}%/мес
+                          {t('tiers.upTo')} {settings?.staking_monthly_rate || '2.5'}%{t('tiers.perMonth')}
                         </span>
                         <span className="text-lg opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          (до {settings?.staking_annual_rate || '30'}% годовых)
+                          ({t('tiers.upTo')} {settings?.staking_annual_rate || '30'}% {t('tiers.perYear')})
                         </span>
                       </div>
                       <div className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.8 }}>
-                        Вывод в любой момент • {settings?.early_withdrawal_fee || '5'}% комиссия до 6 мес
+                        {t('tiers.withdrawAnytime')} • {settings?.early_withdrawal_fee || '5'}% {t('tiers.feeUntil6mo')}
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="text-lg mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                        <span className="font-bold" style={{ color: '#FFC850' }}>Выбор партнёра:</span>
+                        <span className="font-bold" style={{ color: '#FFC850' }}>{t('tiers.partnerChoice')}</span>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-5 h-5" style={{ color: '#28B48C' }} />
                           <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                            Забрать <strong>до +{settings?.large_investor_return || '20'}%</strong> возврат
+                            {t('tiers.takeReturn')} <strong>{t('tiers.upTo')} +{settings?.large_investor_return || '20'}%</strong> {t('tiers.return')}
                           </span>
                         </div>
                         <div className="text-center text-sm opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          ИЛИ
+                          {t('tiers.or')}
                         </div>
                         <div className="flex items-center gap-2">
                           <Car className="w-5 h-5" style={{ color: '#FFC850' }} />
                           <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                            Ждать <strong>авто в собственность</strong> (после выплаты кредита)
+                            {t('tiers.waitCar')} <strong>{t('tiers.carOwnership')}</strong> {t('tiers.afterLoan')}
                           </span>
                         </div>
                       </div>
@@ -250,6 +283,8 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                 <div className="mb-6 space-y-3">
                   {tier.features.map((feature, idx) => {
                     const Icon = getIconForFeature(feature);
+                    const translationKey = featureTranslationKeys[feature];
+                    const displayText = translationKey ? t(translationKey) : feature;
                     return (
                       <div key={idx} className="flex items-center gap-3">
                         <div className="p-2 rounded-lg flex-shrink-0" style={{
@@ -258,7 +293,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                           <Icon className="w-4 h-4" style={{ color: '#28B48C' }} />
                         </div>
                         <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          {feature}
+                          {displayText}
                         </span>
                       </div>
                     );
@@ -273,7 +308,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                   }}>
                     <AlertCircle className="w-5 h-5" style={{ color: '#FFC850' }} />
                     <span className="text-sm" style={{ color: '#FFC850' }}>
-                      Осталось мало авто! Кто первый - тот получает.
+                      {t('tiers.fewCarsLeft')}
                     </span>
                   </div>
                 )}
@@ -292,10 +327,10 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                   }}
                 >
                   {!walletConnected
-                    ? 'Подключите кошелек'
+                    ? t('tiers.connectWallet')
                     : isCarShare && carsAvailable === 0
-                      ? 'Все авто зарезервированы'
-                      : 'Инвестировать'}
+                      ? t('tiers.allReserved')
+                      : t('tiers.invest')}
                 </button>
               </motion.div>
             );
@@ -318,7 +353,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
         >
           <div className="text-center">
             <p className="text-sm mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              <strong>Кошелёк для инвестиций (BSC Network):</strong>
+              <strong>{t('tiers.walletInfo')}</strong>
             </p>
             <code className="px-4 py-2 rounded-lg text-sm break-all" style={{
               backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)',
@@ -327,8 +362,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
               {settings.platform_wallet ? settings.platform_wallet.slice(0, -4) + '****' : ''}
             </code>
             <p className="text-sm mt-4 opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              💡 Принимаем: <strong>USDT, USDC</strong> на Binance Smart Chain (BSC) •
-              Комиссия сети: ~$0.20
+              💡 {t('tiers.acceptedTokens')} • {t('tiers.networkFee')}
             </p>
           </div>
         </motion.div>

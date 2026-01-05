@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Brain, Lightbulb, CheckCircle2 } from 'lucide-react';
+import { Brain, Lightbulb, CheckCircle2, Battery, BatteryLow, BatteryMedium, BatteryFull, Zap } from 'lucide-react';
 import { Card } from './ui/card';
 import { Textarea } from './ui/textarea';
 import { RippleButton } from './RippleButton';
@@ -19,11 +19,11 @@ export function ReviewScreen({ onComplete }: ReviewScreenProps) {
   const [endEnergy, setEndEnergy] = useState<number>(60);
 
   const energyLevels = [
-    { value: 20, emoji: '😴' },
-    { value: 40, emoji: '😐' },
-    { value: 60, emoji: '🙂' },
-    { value: 80, emoji: '😄' },
-    { value: 100, emoji: '🚀' },
+    { value: 20, icon: BatteryLow, color: '#EF4444' },
+    { value: 40, icon: BatteryMedium, color: '#F59E0B' },
+    { value: 60, icon: Battery, color: '#10B981' },
+    { value: 80, icon: BatteryFull, color: '#3B82F6' },
+    { value: 100, icon: Zap, color: '#8B5CF6' },
   ];
 
   const handleSubmit = () => {
@@ -186,7 +186,10 @@ export function ReviewScreen({ onComplete }: ReviewScreenProps) {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <span style={{ fontSize: '32px' }}>{level.emoji}</span>
+                <level.icon 
+                  className="h-8 w-8" 
+                  style={{ color: endEnergy === level.value ? level.color : '#94a3b8' }}
+                />
                 <span className="text-muted-foreground" style={{ fontSize: '12px' }}>
                   {level.value}%
                 </span>

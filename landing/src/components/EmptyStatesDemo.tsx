@@ -94,13 +94,13 @@ export function EmptyStatesDemo() {
               Features:
             </h3>
             <ul className="space-y-2 text-muted-foreground" style={{ fontSize: '14px' }}>
-              <li>✓ Animated ocean-themed illustrations (fish, jellyfish, coral, octopus)</li>
-              <li>✓ Smooth Motion animations with spring physics</li>
-              <li>✓ Rising bubbles effect in background</li>
-              <li>✓ Primary and secondary action buttons</li>
-              <li>✓ Fully localized (RU/EN)</li>
-              <li>✓ Reusable EmptyState component</li>
-              <li>✓ Gradient backgrounds with ocean colors</li>
+              <li>• Animated ocean-themed illustrations (fish, jellyfish, coral, octopus)</li>
+              <li>• Smooth Motion animations with spring physics</li>
+              <li>• Rising bubbles effect in background</li>
+              <li>• Primary and secondary action buttons</li>
+              <li>• Fully localized (RU/EN)</li>
+              <li>• Reusable EmptyState component</li>
+              <li>• Gradient backgrounds with ocean colors</li>
             </ul>
           </div>
         </Card>

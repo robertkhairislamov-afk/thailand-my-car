@@ -4,6 +4,9 @@ import { useAppKit, useAppKitAccount, useDisconnect, useAppKitProvider } from '@
 import { BrowserProvider } from 'ethers';
 import type { Provider } from '@reown/appkit';
 import { api } from '../../services/api';
+import { MobileWalletHelper, isMobileDevice, isWalletBrowser } from './MobileWalletHelper';
+import { LanguageToggle } from '../LanguageToggle';
+import { useLanguage, type Language } from '../../contexts/LanguageContext';
 
 interface ThailandHeaderProps {
   isDark: boolean;
@@ -12,6 +15,8 @@ interface ThailandHeaderProps {
   onTabChange: (tab: string) => void;
   walletAddress: string | null;
   onWalletChange: (address: string | null) => void;
+  language: Language;
+  onLanguageChange: (lang: Language) => void;
 }
 
 export function ThailandHeader({
@@ -20,10 +25,14 @@ export function ThailandHeader({
   activeTab,
   onTabChange,
   walletAddress,
-  onWalletChange
+  onWalletChange,
+  language,
+  onLanguageChange
 }: ThailandHeaderProps) {
+  const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSigningMessage, setIsSigningMessage] = useState(false);
+  const [showMobileHelper, setShowMobileHelper] = useState(false);
 
   // Reown AppKit hooks
   const { open } = useAppKit();
@@ -93,7 +102,12 @@ export function ThailandHeader({
   }, [isConnected, address, signMessageWithWallet]);
 
   const connectWallet = () => {
-    open();
+    // On mobile, if not in wallet browser, show helper
+    if (isMobileDevice() && !isWalletBrowser()) {
+      setShowMobileHelper(true);
+    } else {
+      open();
+    }
   };
 
   const disconnectWallet = () => {
@@ -111,12 +125,12 @@ export function ThailandHeader({
   };
 
   const navItems = [
-    { id: 'home', label: 'Главная' },
-    { id: 'about', label: 'О проекте' },
-    { id: 'invest', label: 'Инвестиции' },
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'roadmap', label: 'Roadmap' },
-    ...(walletAddress ? [{ id: 'profile', label: 'Профиль' }] : [])
+    { id: 'home', label: t('nav.home') },
+    { id: 'about', label: t('nav.about') },
+    { id: 'invest', label: t('nav.invest') },
+    { id: 'dashboard', label: t('nav.dashboard') },
+    { id: 'roadmap', label: t('nav.roadmap') },
+    ...(walletAddress ? [{ id: 'profile', label: t('nav.profile') }] : [])
   ];
 
   return (
@@ -147,7 +161,7 @@ export function ThailandHeader({
                 color: isDark ? '#FFFAF0' : '#143C50',
                 opacity: 0.7
               }}>
-                Инвестиции в рентал
+                {t('header.slogan')}
               </div>
             </div>
           </div>
@@ -176,11 +190,20 @@ export function ThailandHeader({
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Language Toggle - Hidden on mobile, shown in burger menu */}
+            <div className="hidden lg:block">
+              <LanguageToggle
+                currentLanguage={language}
+                onToggle={onLanguageChange}
+                isDark={isDark}
+              />
+            </div>
+
+            {/* Theme Toggle - Hidden on mobile, shown in burger menu */}
             <button
               onClick={onToggleTheme}
-              className="p-2 rounded-xl transition-all duration-500 hover:scale-110"
+              className="hidden lg:flex p-2 rounded-xl transition-all duration-500 hover:scale-110"
               style={{
                 backgroundColor: isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'
               }}
@@ -202,7 +225,7 @@ export function ThailandHeader({
                 }}
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden sm:inline">Подписание...</span>
+                <span className="hidden sm:inline">{t('header.signing')}</span>
               </div>
             ) : walletAddress ? (
               <div className="flex items-center gap-1 md:gap-2">
@@ -244,7 +267,7 @@ export function ThailandHeader({
                     backgroundColor: isDark ? 'rgba(255, 100, 100, 0.2)' : 'rgba(200, 50, 50, 0.1)',
                     color: '#ff6b6b'
                   }}
-                  title="Отключить кошелек"
+                  title={t('header.disconnect')}
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -264,18 +287,18 @@ export function ThailandHeader({
               </button>
             )}
 
-            {/* Mobile Menu Toggle */}
+            {/* Mobile Menu Toggle - Always visible on mobile */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl"
+              className="lg:hidden p-2 rounded-xl flex-shrink-0"
               style={{
                 backgroundColor: isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'
               }}
             >
               {mobileMenuOpen ? (
-                <X className="w-5 h-5" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+                <X className="w-6 h-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
               ) : (
-                <Menu className="w-5 h-5" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+                <Menu className="w-6 h-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
               )}
             </button>
           </div>
@@ -312,6 +335,46 @@ export function ThailandHeader({
               ))}
             </nav>
 
+            {/* Mobile Language Toggle */}
+            <div className="flex items-center justify-between px-4 py-2 mb-2 rounded-xl"
+              style={{
+                backgroundColor: isDark ? 'rgba(255, 250, 240, 0.05)' : 'rgba(20, 60, 80, 0.05)'
+              }}
+            >
+              <span style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.8 }}>
+                {t('header.language')}
+              </span>
+              <LanguageToggle
+                currentLanguage={language}
+                onToggle={onLanguageChange}
+                isDark={isDark}
+              />
+            </div>
+
+            {/* Mobile Theme Toggle */}
+            <div className="flex items-center justify-between px-4 py-2 mb-4 rounded-xl"
+              style={{
+                backgroundColor: isDark ? 'rgba(255, 250, 240, 0.05)' : 'rgba(20, 60, 80, 0.05)'
+              }}
+            >
+              <span style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.8 }}>
+                {isDark ? 'Светлая тема' : 'Тёмная тема'}
+              </span>
+              <button
+                onClick={onToggleTheme}
+                className="p-2 rounded-xl transition-all duration-300"
+                style={{
+                  backgroundColor: isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'
+                }}
+              >
+                {isDark ? (
+                  <Sun className="w-5 h-5" style={{ color: '#FFC850' }} />
+                ) : (
+                  <Moon className="w-5 h-5" style={{ color: '#143C50' }} />
+                )}
+              </button>
+            </div>
+
             {/* Mobile Wallet Button */}
             {isSigningMessage ? (
               <div className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl"
@@ -322,7 +385,7 @@ export function ThailandHeader({
                 }}
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Подписание...</span>
+                <span>{t('header.signing')}</span>
               </div>
             ) : walletAddress ? (
               <div className="space-y-2">
@@ -354,7 +417,7 @@ export function ThailandHeader({
                   }}
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Отключить</span>
+                  <span>{t('header.disconnect')}</span>
                 </button>
               </div>
             ) : (
@@ -371,12 +434,21 @@ export function ThailandHeader({
                 }}
               >
                 <Wallet className="w-4 h-4" />
-                <span>Подключить кошелек</span>
+                <span>{t('header.connectWallet')}</span>
               </button>
             )}
           </div>
         )}
       </div>
+
+      {/* Mobile Wallet Helper Modal */}
+      <MobileWalletHelper
+        isOpen={showMobileHelper}
+        onClose={() => setShowMobileHelper(false)}
+        isDark={isDark}
+        onContinueWithWalletConnect={() => open()}
+        onLoginWithEmail={() => open()}
+      />
     </header>
   );
 }

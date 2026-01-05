@@ -651,6 +651,250 @@ router.patch('/settings/:key', [
   }
 });
 
+// Get withdrawal requests
+router.get('/withdrawals', async (req, res) => {
+  try {
+    const { network = 'mainnet', page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const countResult = await pool.query(`
+      SELECT COUNT(*) FROM investments
+      WHERE status = 'withdrawal_requested'
+        AND COALESCE(network, 'mainnet') = $1
+    `, [network]);
+
+    const result = await pool.query(`
+      SELECT i.*, t.name as tier_name, t.return_percentage, u.email as user_email, u.wallet_address,
+             COALESCE(i.network, 'mainnet') as network
+      FROM investments i
+      JOIN investment_tiers t ON i.tier_id = t.id
+      LEFT JOIN users u ON i.user_id = u.id
+      WHERE i.status = 'withdrawal_requested'
+        AND COALESCE(i.network, 'mainnet') = $1
+      ORDER BY i.invested_at DESC
+      LIMIT $2 OFFSET $3
+    `, [network, limit, offset]);
+
+    res.json({
+      withdrawals: result.rows,
+      total: parseInt(countResult.rows[0].count),
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+  } catch (error) {
+    console.error('Get withdrawals error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Process withdrawal - crypto (with TX hash)
+router.post('/withdrawals/:id/process-crypto', [
+  body('txHash').notEmpty().withMessage('Transaction hash is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { txHash } = req.body;
+
+    // Get the investment
+    const investment = await pool.query(
+      'SELECT * FROM investments WHERE id = $1 AND status = $2',
+      [id, 'withdrawal_requested']
+    );
+
+    if (investment.rows.length === 0) {
+      // Try without status filter to give better error
+      const anyInv = await pool.query('SELECT status FROM investments WHERE id = $1', [id]);
+      if (anyInv.rows.length === 0) {
+        return res.status(404).json({ error: 'Investment not found' });
+      }
+      return res.status(400).json({ error: `Investment status is '${anyInv.rows[0].status}', expected 'withdrawal_requested'` });
+    }
+
+    // Determine new status based on withdrawal type
+    // For earnings-only: return to 'active' so investment continues earning
+    // For principal or all: mark as 'completed'
+    const inv = investment.rows[0];
+    const isEarningsOnly = inv.withdrawal_type === 'earnings';
+    const newStatus = isEarningsOnly ? 'active' : 'completed';
+
+    let result;
+    if (isEarningsOnly) {
+      // For earnings withdrawal: reset staking_earned and add to total_withdrawn_earnings
+      result = await pool.query(`
+        UPDATE investments
+        SET status = $1,
+            payout_tx_hash = $2,
+            total_withdrawn_earnings = COALESCE(total_withdrawn_earnings, 0) + COALESCE(staking_earned, 0),
+            staking_earned = 0,
+            withdrawal_type = NULL,
+            withdrawal_wallet = NULL
+        WHERE id = $3
+        RETURNING *
+      `, [newStatus, txHash, id]);
+    } else {
+      // For principal or all: mark as completed
+      result = await pool.query(`
+        UPDATE investments
+        SET status = $1,
+            payout_tx_hash = $2,
+            returned_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING *
+      `, [newStatus, txHash, id]);
+    }
+
+    // Log the activity
+    await logActivity({
+      action: 'withdrawal_processed_crypto',
+      entityType: 'investment',
+      entityId: id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      details: { txHash, returnAmount: result.rows[0].return_amount }
+    });
+
+    res.json({ success: true, investment: result.rows[0] });
+  } catch (error) {
+    console.error('Process crypto withdrawal error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Process withdrawal - bank transfer (with receipt)
+router.post('/withdrawals/:id/process-bank', [
+  body('receiptUrl').optional(),
+  body('bankDetails').optional(),
+  body('notes').optional()
+], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { receiptUrl, bankDetails, notes } = req.body;
+
+    // Get the investment
+    const investment = await pool.query(
+      'SELECT * FROM investments WHERE id = $1',
+      [id]
+    );
+
+    if (investment.rows.length === 0) {
+      return res.status(404).json({ error: 'Investment not found' });
+    }
+
+    const inv = investment.rows[0];
+    if (inv.status !== 'withdrawal_requested') {
+      return res.status(400).json({ error: `Investment status is '${inv.status}', expected 'withdrawal_requested'` });
+    }
+
+    // Determine new status based on withdrawal type
+    const isEarningsOnly = inv.withdrawal_type === 'earnings';
+    const newStatus = isEarningsOnly ? 'active' : 'completed';
+
+    let result;
+    if (isEarningsOnly) {
+      // For earnings withdrawal: reset staking_earned and add to total_withdrawn_earnings
+      result = await pool.query(`
+        UPDATE investments
+        SET status = $1,
+            payout_receipt_url = $2,
+            payout_bank_details = $3,
+            notes = COALESCE(notes, '') || $4,
+            total_withdrawn_earnings = COALESCE(total_withdrawn_earnings, 0) + COALESCE(staking_earned, 0),
+            staking_earned = 0,
+            withdrawal_type = NULL,
+            withdrawal_wallet = NULL
+        WHERE id = $5
+        RETURNING *
+      `, [newStatus, receiptUrl, bankDetails, notes ? '\n' + notes : '', id]);
+    } else {
+      // For principal or all: mark as completed
+      result = await pool.query(`
+        UPDATE investments
+        SET status = $1,
+            payout_receipt_url = $2,
+            payout_bank_details = $3,
+            notes = COALESCE(notes, '') || $4,
+            returned_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+        RETURNING *
+      `, [newStatus, receiptUrl, bankDetails, notes ? '\n' + notes : '', id]);
+    }
+
+    // Log the activity
+    await logActivity({
+      action: 'withdrawal_processed_bank',
+      entityType: 'investment',
+      entityId: id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      details: { receiptUrl, bankDetails, notes, returnAmount: result.rows[0].return_amount }
+    });
+
+    res.json({ success: true, investment: result.rows[0] });
+  } catch (error) {
+    console.error('Process bank withdrawal error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reject withdrawal request
+router.post('/withdrawals/:id/reject', [
+  body('reason').optional()
+], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Get the investment
+    const investment = await pool.query(
+      'SELECT * FROM investments WHERE id = $1',
+      [id]
+    );
+
+    if (investment.rows.length === 0) {
+      return res.status(404).json({ error: 'Investment not found' });
+    }
+
+    if (investment.rows[0].status !== 'withdrawal_requested') {
+      return res.status(400).json({ error: `Investment status is '${investment.rows[0].status}', expected 'withdrawal_requested'` });
+    }
+
+    // Revert to active status
+    const result = await pool.query(`
+      UPDATE investments
+      SET status = 'active',
+          notes = COALESCE(notes, '') || $1
+      WHERE id = $2
+      RETURNING *
+    `, [reason ? '\nОтклонено: ' + reason : '', id]);
+
+    // Log the activity
+    await logActivity({
+      action: 'withdrawal_rejected',
+      entityType: 'investment',
+      entityId: id,
+      userId: req.user.id,
+      userEmail: req.user.email,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      details: { reason }
+    });
+
+    res.json({ success: true, investment: result.rows[0] });
+  } catch (error) {
+    console.error('Reject withdrawal error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get logs statistics
 router.get('/logs/stats', async (req, res) => {
   try {
@@ -682,6 +926,159 @@ router.get('/logs/stats', async (req, res) => {
   } catch (error) {
     console.error('Get logs stats error:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Recalculate earnings for all active investments (admin only)
+router.post('/recalculate-earnings', requireSuperAdmin, async (req, res) => {
+  try {
+    const { recalculateEarnings } = require('../jobs/recalculateEarnings');
+    const result = await recalculateEarnings();
+
+    // Log the action
+    await logActivity({
+      userId: req.user.id,
+      action: 'recalculate_earnings',
+      entityType: 'investment',
+      details: {
+        updated: result.updated,
+        total: result.total,
+        newEarnings: result.newEarnings
+      },
+      ipAddress: getClientIp(req)
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Recalculate earnings error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get earnings stats
+router.get('/earnings-stats', async (req, res) => {
+  try {
+    const { network } = req.query;
+
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) as total_investments,
+        COUNT(*) FILTER (WHERE status = 'active') as active_investments,
+        COALESCE(SUM(staking_earned), 0) as total_earnings,
+        COALESCE(SUM(amount_usdt), 0) as total_principal,
+        MIN(last_staking_calc) as oldest_calc,
+        MAX(last_staking_calc) as newest_calc
+      FROM investments
+      WHERE ($1::text IS NULL OR network = $1)
+    `, [network || null]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get earnings stats error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+// Admin: Create manual investment deposit
+router.post("/investments/create", requireSuperAdmin, [
+  body("wallet_address").isString().isLength({ min: 42, max: 42 }).matches(/^0x[a-fA-F0-9]{40}$/),
+  body("amount_usdt").isInt({ min: 1000 }),
+  body("tier_type").isIn(["staking", "car_share"]),
+  body("network").isIn(["mainnet", "testnet"])
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { wallet_address, amount_usdt, tier_type, network } = req.body;
+  const lowerAddress = wallet_address.toLowerCase();
+
+  try {
+    if (tier_type === "staking" && amount_usdt < 1000) {
+      return res.status(400).json({ error: "Минимум для стейкинга: \$1,000" });
+    }
+    if (tier_type === "car_share" && amount_usdt < 12400) {
+      return res.status(400).json({ error: "Минимум для доли в авто: \$12,400" });
+    }
+
+    let userResult = await pool.query("SELECT id FROM users WHERE LOWER(wallet_address) = \$1", [lowerAddress]);
+    let userId;
+    
+    if (userResult.rows.length === 0) {
+      const newUser = await pool.query(
+        "INSERT INTO users (wallet_address, created_at) VALUES (\$1, NOW()) RETURNING id",
+        [lowerAddress]
+      );
+      userId = newUser.rows[0].id;
+    } else {
+      userId = userResult.rows[0].id;
+    }
+
+    if (tier_type === "car_share") {
+      const carsUsed = await pool.query(
+        "SELECT COUNT(*) as used FROM investments WHERE tier_type = 'car_share' AND status NOT IN ('rejected', 'cancelled', 'refunded') AND COALESCE(network, 'mainnet') = \$1",
+        [network]
+      );
+      if (parseInt(carsUsed.rows[0].used) >= 9) {
+        return res.status(400).json({ error: "Все 9 машин уже заняты" });
+      }
+    }
+
+    const tierResult = await pool.query("SELECT id FROM investment_tiers LIMIT 1");
+    const tierId = tierResult.rows[0]?.id || 1;
+
+    const lockMonths = tier_type === "staking" ? 12 : 6;
+    const maturityDate = new Date();
+    maturityDate.setMonth(maturityDate.getMonth() + lockMonths);
+
+    const amountBaht = amount_usdt * 35;
+    const txHash = "admin_" + Date.now();
+
+    const result = await pool.query(
+      "INSERT INTO investments (user_id, tier_id, wallet_address, amount_usdt, amount_baht, tx_hash, maturity_date, status, tier_type, last_staking_calc, tx_verified, tx_verification_status, network, invested_at) VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, 'active', \$8, NOW(), true, 'admin_created', \$9, NOW()) RETURNING *",
+      [userId, tierId, lowerAddress, amount_usdt, amountBaht, txHash, maturityDate, tier_type, network]
+    );
+
+    const investment = result.rows[0];
+
+    if (tier_type === "car_share") {
+      const usedCars = await pool.query("SELECT car_number FROM car_assignments ORDER BY car_number");
+      const usedNumbers = new Set(usedCars.rows.map(r => r.car_number));
+      let carNumber = 1;
+      while (usedNumbers.has(carNumber) && carNumber <= 9) {
+        carNumber++;
+      }
+      if (carNumber <= 9) {
+        await pool.query(
+          "INSERT INTO car_assignments (car_number, investment_id, wallet_address, status) VALUES (\$1, \$2, \$3, 'reserved')",
+          [carNumber, investment.id, lowerAddress]
+        );
+        await pool.query(
+          "UPDATE investments SET car_assigned = true, car_number = \$1 WHERE id = \$2",
+          [carNumber, investment.id]
+        );
+      }
+    }
+
+    await logActivity({
+      userId: req.user.id,
+      action: "admin_create_investment",
+      entityType: "investment",
+      entityId: investment.id,
+      details: { wallet: lowerAddress, amount: amount_usdt, tier_type, network },
+      ipAddress: getClientIp(req)
+    });
+
+    res.json({
+      success: true,
+      investment: { id: investment.id, amount_usdt, tier_type, status: "active", network, wallet_address: lowerAddress }
+    });
+
+  } catch (error) {
+    console.error("Admin create investment error:", error);
+    res.status(500).json({ error: "Server error: " + error.message });
   }
 });
 

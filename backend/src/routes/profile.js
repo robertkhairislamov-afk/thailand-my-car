@@ -9,6 +9,7 @@ const { logActivity, getClientIp } = require('../utils/logger');
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const { network = 'mainnet' } = req.query;
 
     const result = await pool.query(
       `SELECT
@@ -25,15 +26,15 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const user = result.rows[0];
 
-    // Get investment stats
+    // Get investment stats (filtered by network)
     const statsResult = await pool.query(
       `SELECT
         COUNT(*) as total_investments,
         COALESCE(SUM(amount_usdt), 0) as total_invested_usdt,
         COALESCE(SUM(amount_baht), 0) as total_invested_baht,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_investments
-       FROM investments WHERE user_id = $1`,
-      [userId]
+       FROM investments WHERE user_id = $1 AND COALESCE(network, 'mainnet') = $2`,
+      [userId, network]
     );
 
     const stats = statsResult.rows[0];
@@ -174,17 +175,19 @@ router.put('/', authenticateToken, [
 router.get('/investments', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const { network = 'mainnet' } = req.query;
 
     const result = await pool.query(
       `SELECT
         i.id, i.amount_usdt, i.amount_baht, i.status,
         i.invested_at, i.maturity_date, i.return_amount,
+        COALESCE(i.network, 'mainnet') as network,
         t.name as tier_name, t.return_percentage, t.duration_months
        FROM investments i
        LEFT JOIN investment_tiers t ON i.tier_id = t.id
-       WHERE i.user_id = $1
+       WHERE i.user_id = $1 AND COALESCE(i.network, 'mainnet') = $2
        ORDER BY i.invested_at DESC`,
-      [userId]
+      [userId, network]
     );
 
     res.json({

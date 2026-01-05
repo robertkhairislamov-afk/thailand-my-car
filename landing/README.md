@@ -1,7 +1,7 @@
 
-  # AI Organizer Mini App
+  # AI Organizer Mini App (Copy)
 
-  This is a code bundle for AI Organizer Mini App. The original project is available at https://www.figma.com/design/7bOJk3scilrt0YwjkUuXYQ/AI-Organizer-Mini-App.
+  This is a code bundle for AI Organizer Mini App (Copy). The original project is available at https://www.figma.com/design/glqTIwui3DXYmmr8Iv941d/AI-Organizer-Mini-App--Copy-.
 
   ## Running the code
 

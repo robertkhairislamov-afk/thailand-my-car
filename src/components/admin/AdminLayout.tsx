@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, DollarSign, Users, FileText, Settings, LogOut, Menu, X, Sun, Moon, Activity, MessageCircle, Globe, TestTube2 } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Users, FileText, Settings, LogOut, Menu, X, Sun, Moon, Activity, MessageCircle, Globe, TestTube2, Wallet } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -19,6 +19,7 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
   const menuItems = [
     { id: 'dashboard', label: 'Дашборд', icon: LayoutDashboard },
     { id: 'investments', label: 'Инвестиции', icon: DollarSign },
+    { id: 'withdrawals', label: 'Заявки на вывод', icon: Wallet },
     { id: 'users', label: 'Пользователи', icon: Users },
     { id: 'chat', label: 'Чат', icon: MessageCircle },
     { id: 'reports', label: 'Отчёты', icon: FileText },

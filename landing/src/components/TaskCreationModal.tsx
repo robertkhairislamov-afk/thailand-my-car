@@ -59,9 +59,9 @@ export function TaskCreationModal({ isOpen, onClose, onCreateTask }: TaskCreatio
   };
 
   const priorities = [
-    { value: 'low', label: t('tasks.priority.low'), color: '#94a3b8', icon: '🟢' },
-    { value: 'medium', label: t('tasks.priority.medium'), color: '#4A9FD8', icon: '🟡' },
-    { value: 'high', label: t('tasks.priority.high'), color: '#ef4444', icon: '🔴' },
+    { value: 'low', label: t('tasks.priority.low'), color: '#94a3b8' },
+    { value: 'medium', label: t('tasks.priority.medium'), color: '#4A9FD8' },
+    { value: 'high', label: t('tasks.priority.high'), color: '#ef4444' },
   ] as const;
 
   return (
@@ -185,7 +185,13 @@ export function TaskCreationModal({ isOpen, onClose, onCreateTask }: TaskCreatio
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          <span className="text-2xl">{priority.icon}</span>
+                          <div 
+                            className="h-6 w-6 rounded-full border-2"
+                            style={{ 
+                              borderColor: priority.color,
+                              backgroundColor: formData.priority === priority.value ? priority.color : 'transparent'
+                            }}
+                          />
                           <span className="text-xs font-medium">{priority.label}</span>
                         </motion.button>
                       ))}

@@ -3,6 +3,7 @@ import { X, Copy, Check, Loader2, AlertCircle, Car, Percent, ExternalLink, Plus,
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
 import { bscService, type BalanceInfo, IS_BSC_TESTNET } from '../../services/bsc';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 // Agreement Step Component with scroll-to-unlock
 function AgreementStep({
@@ -10,13 +11,15 @@ function AgreementStep({
   textColor,
   agreeTerms,
   onAgree,
-  onContinue
+  onContinue,
+  t
 }: {
   isDark: boolean;
   textColor: string;
   agreeTerms: boolean;
   onAgree: (checked: boolean) => void;
   onContinue: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hasScrolledToEnd, setHasScrolledToEnd] = useState(false);
@@ -64,54 +67,54 @@ function AgreementStep({
           }}
         >
           <p className="font-bold mb-3 text-xs text-center" style={{ color: accentColor }}>
-            СОГЛАШЕНИЕ О ПАРТНЁРСКОМ ЗАЙМЕ
+            {t('modal.agreementTitle')}
           </p>
 
           <p className="mb-2 opacity-90">
-            Договор частного займа между физическими лицами согласно Гражданскому и Торговому кодексу Таиланда.
+            {t('modal.agreementIntro')}
           </p>
 
           <p className="mb-2 opacity-90">
-            <strong>1. Характер сделки:</strong> Частный займ между знакомыми лицами для развития бизнеса по аренде автомобилей.{' '}
-            <span style={{ color: warningColor, fontWeight: 600 }}>НЕ является публичным предложением ценных бумаг</span>.
+            <strong>{t('modal.agreementNature')}</strong> {t('modal.agreementNatureText')}{' '}
+            <span style={{ color: warningColor, fontWeight: 600 }}>{t('modal.agreementNotPublic')}</span>.
           </p>
 
           <div className="mb-2 p-2 rounded-lg" style={{ backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)' }}>
             <p className="opacity-90">
-              <strong style={{ color: warningColor }}>2. РИСКИ:</strong>{' '}
-              Доходность —{' '}
-              <span style={{ color: warningColor, fontWeight: 600 }}>ПРОГНОЗ, НЕ ГАРАНТИРУЕТСЯ</span>.
-              Компания владеет реальными активами и имеет страховое покрытие, что минимизирует риски.
+              <strong style={{ color: warningColor }}>{t('modal.agreementRisks')}</strong>{' '}
+              {t('modal.agreementRisksText')}{' '}
+              <span style={{ color: warningColor, fontWeight: 600 }}>{t('modal.agreementNotGuaranteed')}</span>.
+              {t('modal.agreementRisksNote')}
             </p>
           </div>
 
           <p className="mb-2 opacity-90">
-            <strong>3. Возврат:</strong> Досрочный возврат возможен с удержанием компенсации.
+            <strong>{t('modal.agreementReturn')}</strong> {t('modal.agreementReturnText')}
           </p>
 
           <p className="mb-2 opacity-90">
-            <strong>4. Налоги:</strong> Ответственность каждой стороны по законам своей страны.
+            <strong>{t('modal.agreementTaxes')}</strong> {t('modal.agreementTaxesText')}
           </p>
 
           <p className="mb-2 opacity-90">
-            <strong>5. Споры:</strong> Разрешаются по тайскому праву.
+            <strong>{t('modal.agreementDisputes')}</strong> {t('modal.agreementDisputesText')}
           </p>
 
           <p className="mb-2 opacity-90">
-            <strong>6. Возраст:</strong> Участник подтверждает достижение{' '}
-            <span style={{ color: warningColor, fontWeight: 600 }}>20 лет</span>.
+            <strong>{t('modal.agreementAge')}</strong> {t('modal.agreementAgeText')}{' '}
+            <span style={{ color: warningColor, fontWeight: 600 }}>{t('modal.agreementAgeYears')}</span>.
           </p>
 
           <p className="mb-2 opacity-90">
-            <strong>7. Данные:</strong> Согласие на обработку согласно PDPA Таиланда.
+            <strong>{t('modal.agreementData')}</strong> {t('modal.agreementDataText')}
           </p>
 
           <p className="mb-2 opacity-90">
-            <strong>8. Roadmap:</strong> План развития носит ориентировочный характер. Сроки и этапы могут корректироваться в зависимости от рыночных условий и бизнес-возможностей.
+            <strong>{t('modal.agreementRoadmap')}</strong> {t('modal.agreementRoadmapText')}
           </p>
 
           <div className="pt-2 mt-2 border-t text-center opacity-50 text-[10px]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-            <p>Версия 1.1 • 08.12.2025 • Thailand My Car, Pattaya</p>
+            <p>{t('modal.agreementVersion')}</p>
           </div>
         </div>
 
@@ -121,7 +124,7 @@ function AgreementStep({
             style={{ background: isDark ? 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%)' : 'linear-gradient(to top, rgba(255,255,255,0.8) 0%, transparent 100%)' }}>
             <motion.div animate={{ y: [0, 3, 0] }} transition={{ repeat: Infinity, duration: 1.2 }} className="flex items-center gap-1 text-[10px] opacity-80" style={{ color: textColor }}>
               <ChevronDown className="w-3 h-3" />
-              <span>Прокрутите вниз</span>
+              <span>{t('modal.scrollDown')}</span>
             </motion.div>
           </div>
         )}
@@ -142,7 +145,7 @@ function AgreementStep({
             {agreeTerms && <Check className="w-4 h-4 text-white" />}
           </div>
           <span className="text-xs" style={{ color: textColor }}>
-            {hasScrolledToEnd ? 'Я прочитал и принимаю условия' : 'Прокрутите до конца'}
+            {hasScrolledToEnd ? t('modal.agreeTerms') : t('modal.scrollToEnd')}
           </span>
         </label>
 
@@ -152,7 +155,7 @@ function AgreementStep({
           disabled={!agreeTerms}
           className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40"
           style={{ background: agreeTerms ? 'linear-gradient(135deg, #28B48C 0%, #009696 100%)' : isDark ? 'rgba(255,250,240,0.1)' : 'rgba(20,60,80,0.1)', color: agreeTerms ? '#FFFAF0' : textColor }}>
-          {agreeTerms ? 'Продолжить' : 'Прочитайте соглашение'}
+          {agreeTerms ? t('modal.continue') : t('modal.readAgreement')}
         </motion.button>
       </div>
     </div>
@@ -239,6 +242,7 @@ interface InvestModalProps {
 type Step = 'agreement' | 'amount' | 'transfer' | 'confirm' | 'success';
 
 export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSuccess }: InvestModalProps) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<Step>('agreement');
   const [amount, setAmount] = useState(0);
   const [txHash, setTxHash] = useState('');
@@ -429,11 +433,11 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
 
   const handleAmountSubmit = () => {
     if (amountNum < minUsd) {
-      setError(`Минимум: $${minUsd.toLocaleString()}`);
+      setError(`${t('modal.minAmount')}: $${minUsd.toLocaleString()}`);
       return;
     }
     if (isStaking && amountNum >= maxUsd) {
-      setError(`Для $${maxUsd.toLocaleString()}+ выберите "Доля в автомобиле"`);
+      setError(t('modal.maxError').replace('${amount}', `$${maxUsd.toLocaleString()}`));
       return;
     }
     setError('');
@@ -442,11 +446,11 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
 
   const handleConfirmSubmit = async () => {
     if (!txHash.trim()) {
-      setError('Введите TX Hash');
+      setError(t('modal.enterTxHash'));
       return;
     }
     if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
-      setError('Неверный формат TX Hash');
+      setError(t('modal.invalidTxHash'));
       return;
     }
     setLoading(true);
@@ -472,7 +476,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
       setStep('success');
       onSuccess();
     } catch (err) {
-      setError('Ошибка создания инвестиции');
+      setError(t('modal.errorCreating'));
     } finally {
       setLoading(false);
     }
@@ -501,7 +505,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
       setStep('success');
       onSuccess();
     } catch (err) {
-      setError('Ошибка создания инвестиции');
+      setError(t('modal.errorCreating'));
     } finally {
       setLoading(false);
     }
@@ -571,6 +575,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     setAgreeData(checked);
                   }}
                   onContinue={() => setStep('amount')}
+                  t={t}
                 />
               )}
 
@@ -579,7 +584,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                 <div className="space-y-4">
                   <div className="text-center">
                     <label className="block text-xs mb-2 opacity-70" style={{ color: textColor }}>
-                      Сумма инвестиции
+                      {t('modal.amount')}
                     </label>
 
                     {/* Main amount display with +/- controls */}
@@ -669,7 +674,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     }}
                   >
                     <div className="text-xs opacity-70 mb-1" style={{ color: textColor }}>
-                      {isStaking ? 'Ожидаемый доход (прогноз)' : 'Ожидаемый возврат до +20%'}
+                      {isStaking ? t('modal.expectedReturn') : t('modal.expectedReturnCar')}
                     </div>
                     <motion.div
                       key={expectedReturn}
@@ -682,7 +687,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     </motion.div>
                     {isCarShare && (
                       <div className="text-xs mt-1 opacity-70" style={{ color: textColor }}>
-                        или авто в собственность
+                        {t('modal.orCarOwnership')}
                       </div>
                     )}
                   </motion.div>
@@ -707,7 +712,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                       color: '#FFFAF0'
                     }}
                   >
-                    Далее
+                    {t('modal.next')}
                   </motion.button>
 
                   <button
@@ -715,7 +720,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     className="w-full py-2 text-xs opacity-70 hover:opacity-100"
                     style={{ color: textColor }}
                   >
-                    ← Назад к соглашению
+                    {t('modal.backToAgreement')}
                   </button>
                 </div>
               )}
@@ -729,7 +734,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                       background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                       color: '#FFFFFF'
                     }}>
-                      ⚠️ TESTNET MODE - Тестовая сеть BSC
+                      {t('modal.testnetMode')}
                     </div>
                   )}
 
@@ -738,7 +743,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                       ${amountNum.toLocaleString()}
                     </div>
                     <div className="text-xs opacity-70" style={{ color: textColor }}>
-                      Выберите способ оплаты
+                      {t('modal.choosePayment')}
                     </div>
                   </div>
 
@@ -796,12 +801,12 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     {loading ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Подтвердите в кошельке...</span>
+                        <span>{t('modal.confirmInWallet')}</span>
                       </>
                     ) : (
                       <>
                         <Wallet className="w-5 h-5" />
-                        <span>Оплатить через кошелёк</span>
+                        <span>{t('modal.payViaWallet')}</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -810,7 +815,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                   {/* Bank Transfer Coming Soon */}
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
-                    <span className="text-xs opacity-50" style={{ color: textColor }}>или</span>
+                    <span className="text-xs opacity-50" style={{ color: textColor }}>{t('modal.or')}</span>
                     <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
                   </div>
 
@@ -818,7 +823,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.05)'
                   }}>
                     <div className="text-sm opacity-70" style={{ color: textColor }}>
-                      💳 Оплата по реквизитам — <span style={{ color: accentColor }}>coming soon</span>
+                      💳 {t('modal.paymentDetails')} — <span style={{ color: accentColor }}>{t('modal.comingSoon')}</span>
                     </div>
                   </div>
 
@@ -827,7 +832,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     className="w-full py-2 text-xs opacity-70 hover:opacity-100"
                     style={{ color: textColor }}
                   >
-                    ← Назад
+                    ← {t('modal.back')}
                   </button>
                 </div>
               )}
@@ -843,10 +848,10 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
 
                   <div>
                     <h3 className="text-xl font-bold mb-1" style={{ color: accentColor }}>
-                      Заявка создана!
+                      {t('modal.applicationCreated')}
                     </h3>
                     <p className="text-xs opacity-70" style={{ color: textColor }}>
-                      Инвестиция на рассмотрении
+                      {t('modal.investmentPending')}
                     </p>
                   </div>
 
@@ -854,21 +859,21 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                     backgroundColor: isDark ? 'rgba(0, 150, 150, 0.1)' : 'rgba(0, 150, 150, 0.05)'
                   }}>
                     <div className="flex justify-between mb-1">
-                      <span className="text-xs opacity-70" style={{ color: textColor }}>Сумма:</span>
+                      <span className="text-xs opacity-70" style={{ color: textColor }}>{t('modal.amountLabel')}</span>
                       <span className="text-xs font-semibold" style={{ color: textColor }}>
                         ${amountNum.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs opacity-70" style={{ color: textColor }}>Статус:</span>
+                      <span className="text-xs opacity-70" style={{ color: textColor }}>{t('modal.statusLabel')}</span>
                       <span className="text-xs font-semibold" style={{ color: '#FFC850' }}>
-                        {txHash ? 'Ожидает проверки' : 'Ожидает перевода'}
+                        {txHash ? t('modal.awaitingVerification') : t('modal.awaitingPayment')}
                       </span>
                     </div>
                   </div>
 
                   <p className="text-[10px] opacity-70" style={{ color: textColor }}>
-                    Проверим транзакцию в течение 24 часов
+                    {t('modal.willCheck24h')}
                   </p>
 
                   <button
@@ -879,7 +884,7 @@ export function InvestModal({ isOpen, onClose, tier, walletAddress, isDark, onSu
                       color: '#FFFAF0'
                     }}
                   >
-                    Готово
+                    {t('modal.done')}
                   </button>
                 </div>
               )}

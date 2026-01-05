@@ -106,3 +106,15 @@ ALTER TABLE investments DROP COLUMN IF EXISTS nft_token_id;
 -- 7. Create index for tier_type
 CREATE INDEX IF NOT EXISTS idx_investments_tier_type ON investments(tier_type);
 CREATE INDEX IF NOT EXISTS idx_investments_car_assigned ON investments(car_assigned);
+
+-- 8. Add payout tracking columns (for withdrawal processing)
+ALTER TABLE investments
+  ADD COLUMN IF NOT EXISTS payout_tx_hash VARCHAR(100) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS payout_receipt_url TEXT DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS payout_bank_details TEXT DEFAULT NULL;
+
+COMMENT ON COLUMN investments.payout_tx_hash IS 'Transaction hash of the payout (for crypto withdrawals)';
+COMMENT ON COLUMN investments.payout_receipt_url IS 'URL/path to bank receipt document (for bank transfers)';
+COMMENT ON COLUMN investments.payout_bank_details IS 'Bank transfer details/reference number';
+
+CREATE INDEX IF NOT EXISTS idx_investments_status ON investments(status);

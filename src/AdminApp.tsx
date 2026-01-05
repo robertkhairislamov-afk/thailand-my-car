@@ -4,7 +4,7 @@ import { Dashboard } from './components/admin/Dashboard';
 import { InvestmentDetail } from './components/admin/InvestmentDetail';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { api } from './services/api';
-import { Loader2, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Activity, Filter, RefreshCw, ChevronLeft, ChevronRight, Wallet, Shield, X, AlertTriangle, Globe, TestTube2 } from 'lucide-react';
+import { Loader2, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Activity, Filter, RefreshCw, ChevronLeft, ChevronRight, Wallet, Shield, X, AlertTriangle, Globe, TestTube2, DollarSign, FileText, Copy } from 'lucide-react';
 import { AdminChat } from './components/admin/AdminChat';
 
 // Settings Page Component
@@ -33,8 +33,21 @@ function SettingsPage({ isDark, admin }: { isDark: boolean; admin: any }) {
   const [walletError, setWalletError] = useState('');
   const [walletSaving, setWalletSaving] = useState(false);
 
+  // Telegram Settings
+  const [telegramSettings, setTelegramSettings] = useState<{
+    telegram_enabled: string;
+    telegram_support_chat_id: string;
+    telegram_bot_token_set: boolean;
+    webhook_url?: string;
+  } | null>(null);
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [newSupportChatId, setNewSupportChatId] = useState("");
+  const [telegramTestLoading, setTelegramTestLoading] = useState(false);
+  const [telegramMessage, setTelegramMessage] = useState<{type: "success" | "error"; text: string} | null>(null);
+
   useEffect(() => {
     loadSettings();
+    loadTelegramSettings();
   }, []);
 
   const loadSettings = async () => {
@@ -45,6 +58,121 @@ function SettingsPage({ isDark, admin }: { isDark: boolean; admin: any }) {
     }
     setSettingsLoading(false);
   };
+
+  // Load Telegram settings
+  const loadTelegramSettings = async () => {
+    setTelegramLoading(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/telegram/settings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.settings) {
+        setTelegramSettings(data.settings);
+        setNewSupportChatId(data.settings.telegram_support_chat_id || "");
+      }
+    } catch (e) {
+      console.error("Load telegram settings error:", e);
+    }
+    setTelegramLoading(false);
+  };
+
+  // Save Telegram support chat ID
+  const saveTelegramChatId = async () => {
+    setTelegramLoading(true);
+    setTelegramMessage(null);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/telegram/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ telegram_support_chat_id: newSupportChatId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTelegramMessage({ type: "success", text: "Chat ID сохранён" });
+        loadTelegramSettings();
+      } else {
+        setTelegramMessage({ type: "error", text: data.error || "Ошибка сохранения" });
+      }
+    } catch (e) {
+      setTelegramMessage({ type: "error", text: "Ошибка сети" });
+    }
+    setTelegramLoading(false);
+  };
+
+  // Toggle Telegram enabled
+  const toggleTelegramEnabled = async () => {
+    setTelegramLoading(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const newEnabled = telegramSettings?.telegram_enabled !== "true";
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/telegram/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ telegram_enabled: newEnabled })
+      });
+      if ((await res.json()).success) {
+        loadTelegramSettings();
+      }
+    } catch (e) {
+      console.error("Toggle telegram error:", e);
+    }
+    setTelegramLoading(false);
+  };
+
+  // Test Telegram connection
+  const testTelegram = async () => {
+    setTelegramTestLoading(true);
+    setTelegramMessage(null);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/telegram/test`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTelegramMessage({ type: "success", text: "Тестовое сообщение отправлено!" });
+      } else {
+        setTelegramMessage({ type: "error", text: data.error || "Ошибка отправки" });
+      }
+    } catch (e) {
+      setTelegramMessage({ type: "error", text: "Ошибка сети" });
+    }
+    setTelegramTestLoading(false);
+  };
+
+  // Setup webhook
+  const setupWebhook = async () => {
+    setTelegramLoading(true);
+    setTelegramMessage(null);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/telegram/webhook/setup`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTelegramMessage({ type: "success", text: "Webhook установлен: " + data.url });
+        loadTelegramSettings();
+      } else {
+        setTelegramMessage({ type: "error", text: data.error || "Ошибка установки" });
+      }
+    } catch (e) {
+      setTelegramMessage({ type: "error", text: "Ошибка сети" });
+    }
+    setTelegramLoading(false);
+  };
+
 
   const handleEditSetting = (key: string, value: string) => {
     // Special handling for platform_wallet - open modal
@@ -493,6 +621,128 @@ function SettingsPage({ isDark, admin }: { isDark: boolean; admin: any }) {
           <div>
             <p className="text-sm opacity-60 mb-1" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Роль</p>
             <p style={{ color: '#009696', fontWeight: 500 }}>{admin?.role === 'superadmin' ? 'Супер-админ' : 'Админ'}</p>
+          </div>
+        </div>
+      </div>
+
+
+      {/* Telegram Settings */}
+      <div
+        className="rounded-2xl p-6 border"
+        style={{
+          background: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.9)",
+          borderColor: isDark ? "rgba(0, 150, 150, 0.3)" : "rgba(0, 150, 150, 0.2)"
+        }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,150,150,0.15)" }}>
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#009696">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+              </svg>
+            </div>
+            <h2 className="text-xl" style={{ color: isDark ? "#FFFAF0" : "#143C50", fontWeight: 600 }}>
+              Telegram интеграция
+            </h2>
+          </div>
+          <button
+            onClick={loadTelegramSettings}
+            disabled={telegramLoading}
+            className="p-2 rounded-lg transition-all hover:scale-105"
+            style={{ background: isDark ? "rgba(0,150,150,0.2)" : "rgba(0,150,150,0.1)", color: "#009696" }}
+          >
+            <RefreshCw className={`w-4 h-4 ${telegramLoading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+
+        {telegramMessage && (
+          <div
+            className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${telegramMessage.type === "success" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}
+          >
+            {telegramMessage.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            {telegramMessage.text}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Status */}
+          <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
+            <div>
+              <div style={{ color: isDark ? "#FFFAF0" : "#143C50", fontWeight: 500 }}>Статус</div>
+              <div className="text-xs opacity-50 mt-1" style={{ color: isDark ? "#FFFAF0" : "#143C50" }}>
+                Включить/выключить пересылку сообщений в Telegram
+              </div>
+            </div>
+            <button
+              onClick={toggleTelegramEnabled}
+              disabled={telegramLoading}
+              className={`px-4 py-2 rounded-lg transition-all ${telegramSettings?.telegram_enabled === "true" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}
+            >
+              {telegramSettings?.telegram_enabled === "true" ? "Включено" : "Выключено"}
+            </button>
+          </div>
+
+          {/* Support Chat ID */}
+          <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
+            <div style={{ color: isDark ? "#FFFAF0" : "#143C50", fontWeight: 500 }}>Chat ID поддержки</div>
+            <div className="text-xs opacity-50 mt-1 mb-3" style={{ color: isDark ? "#FFFAF0" : "#143C50" }}>
+              ID пользователя Telegram который будет получать сообщения. Узнать можно отправив /start боту.
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newSupportChatId}
+                onChange={(e) => setNewSupportChatId(e.target.value)}
+                placeholder="Например: 7038002579"
+                className="flex-1 px-3 py-2 rounded-lg border text-sm"
+                style={{
+                  background: isDark ? "rgba(255,255,255,0.1)" : "white",
+                  borderColor: isDark ? "rgba(0,150,150,0.3)" : "rgba(0,150,150,0.2)",
+                  color: isDark ? "#FFFAF0" : "#143C50"
+                }}
+              />
+              <button
+                onClick={saveTelegramChatId}
+                disabled={telegramLoading}
+                className="px-4 py-2 rounded-lg transition-all hover:scale-105"
+                style={{ background: "rgba(0,150,150,0.2)", color: "#009696" }}
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+
+          {/* Bot Token Status */}
+          <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
+            <div>
+              <div style={{ color: isDark ? "#FFFAF0" : "#143C50", fontWeight: 500 }}>Bot Token</div>
+              <div className="text-xs opacity-50 mt-1" style={{ color: isDark ? "#FFFAF0" : "#143C50" }}>
+                Токен бота @SaturwayMira_bot
+              </div>
+            </div>
+            <span className={`px-3 py-1 rounded-lg text-sm ${telegramSettings?.telegram_bot_token_set ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+              {telegramSettings?.telegram_bot_token_set ? "Настроен" : "Не настроен"}
+            </span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button
+              onClick={testTelegram}
+              disabled={telegramTestLoading || !telegramSettings?.telegram_enabled}
+              className="px-4 py-2 rounded-lg transition-all hover:scale-105 disabled:opacity-50"
+              style={{ background: "rgba(40,180,140,0.2)", color: "#28B48C" }}
+            >
+              {telegramTestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Отправить тест"}
+            </button>
+            <button
+              onClick={setupWebhook}
+              disabled={telegramLoading}
+              className="px-4 py-2 rounded-lg transition-all hover:scale-105"
+              style={{ background: isDark ? "rgba(0,150,150,0.2)" : "rgba(0,150,150,0.1)", color: "#009696" }}
+            >
+              Настроить Webhook
+            </button>
           </div>
         </div>
       </div>
@@ -972,6 +1222,141 @@ function LogsPage({ isDark }: { isDark: boolean }) {
   );
 }
 
+// Analytics Page Component
+function AnalyticsPage({ isDark }: { isDark: boolean }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("7d");
+
+  useEffect(() => {
+    loadStats();
+  }, [period]);
+
+  const loadStats = async () => {
+    setLoading(true);
+    try {
+      const res = await api.getAnalyticsStats(period);
+      if (res.data) {
+        setStats(res.data);
+      }
+    } catch (e) {
+      console.error("Analytics error:", e);
+    }
+    setLoading(false);
+  };
+
+  const countryFlags: Record<string, string> = {
+    RU: "🇷🇺", US: "🇺🇸", DE: "🇩🇪", GB: "🇬🇧", FR: "🇫🇷", CN: "🇨🇳", JP: "🇯🇵",
+    TH: "🇹🇭", VN: "🇻🇳", KR: "🇰🇷", IN: "🇮🇳", UA: "🇺🇦", KZ: "🇰🇿", BY: "🇧🇾",
+    PL: "🇵🇱", NL: "🇳🇱", TR: "🇹🇷", AE: "🇦🇪", SG: "🇸🇬", ID: "🇮🇩", LO: "🏠"
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "#009696" }} />
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="text-center py-12">
+        <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p className="opacity-70">Нет данных аналитики</p>
+      </div>
+    );
+  }
+
+  const todayChange = stats.yesterday > 0 
+    ? Math.round(((stats.today - stats.yesterday) / stats.yesterday) * 100) 
+    : stats.today > 0 ? 100 : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2" style={{ color: isDark ? "#FFFAF0" : "#143C50" }}>
+          <Globe className="w-5 h-5" style={{ color: "#009696" }} />
+          Статистика посещений
+        </h2>
+        <div className="flex gap-2">
+          {[{ value: "24h", label: "24ч" }, { value: "7d", label: "7д" }, { value: "30d", label: "30д" }, { value: "all", label: "Всё" }].map(p => (
+            <button key={p.value} onClick={() => setPeriod(p.value)} className="px-3 py-1 rounded-lg text-sm transition-all"
+              style={{ background: period === p.value ? "#009696" : isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", color: period === p.value ? "#FFFAF0" : isDark ? "#FFFAF0" : "#143C50" }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(0,150,150,0.15)" : "rgba(0,150,150,0.1)" }}>
+          <div className="text-sm opacity-70 mb-1">Всего просмотров</div>
+          <div className="text-2xl font-bold" style={{ color: "#009696" }}>{parseInt(stats.totals.total_views).toLocaleString()}</div>
+        </div>
+        <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(40,180,140,0.15)" : "rgba(40,180,140,0.1)" }}>
+          <div className="text-sm opacity-70 mb-1">Уник. сессий</div>
+          <div className="text-2xl font-bold" style={{ color: "#28B48C" }}>{parseInt(stats.totals.unique_sessions).toLocaleString()}</div>
+        </div>
+        <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(255,200,80,0.15)" : "rgba(255,200,80,0.1)" }}>
+          <div className="text-sm opacity-70 mb-1">Уникальных IP</div>
+          <div className="text-2xl font-bold" style={{ color: "#FFC850" }}>{parseInt(stats.totals.unique_ips).toLocaleString()}</div>
+        </div>
+        <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)" }}>
+          <div className="text-sm opacity-70 mb-1">Сегодня</div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold">{stats.today}</span>
+            <span className={todayChange >= 0 ? "text-green-500 text-sm" : "text-red-500 text-sm"}>{todayChange >= 0 ? "+" : ""}{todayChange}%</span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)" }}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2"><Globe className="w-4 h-4" style={{ color: "#009696" }} />По странам</h3>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {stats.countries.map((c: any, i: number) => (
+              <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}>
+                <div className="flex items-center gap-2"><span className="text-xl">{countryFlags[c.country_code] || "🌍"}</span><span>{c.country}</span></div>
+                <div className="flex items-center gap-4 text-sm"><span className="opacity-70">{c.sessions} сес.</span><span className="font-semibold" style={{ color: "#009696" }}>{c.views}</span></div>
+              </div>
+            ))}
+            {stats.countries.length === 0 && <div className="text-center py-4 opacity-50">Нет данных</div>}
+          </div>
+        </div>
+        <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)" }}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2"><Activity className="w-4 h-4" style={{ color: "#28B48C" }} />По дням</h3>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {stats.daily.map((d: any, i: number) => {
+              const maxViews = Math.max(...stats.daily.map((x: any) => parseInt(x.views)));
+              const width = maxViews > 0 ? (parseInt(d.views) / maxViews) * 100 : 0;
+              return (
+                <div key={i} className="relative">
+                  <div className="absolute left-0 top-0 bottom-0 rounded-lg opacity-20" style={{ width: width + "%", background: "#28B48C" }} />
+                  <div className="relative flex items-center justify-between py-2 px-3">
+                    <span className="text-sm">{new Date(d.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</span>
+                    <div className="flex items-center gap-4 text-sm"><span className="opacity-70">{d.sessions} сес.</span><span className="font-semibold" style={{ color: "#28B48C" }}>{d.views}</span></div>
+                  </div>
+                </div>
+              );
+            })}
+            {stats.daily.length === 0 && <div className="text-center py-4 opacity-50">Нет данных</div>}
+          </div>
+        </div>
+      </div>
+      <div className="p-4 rounded-xl" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)" }}>
+        <h3 className="font-semibold mb-4">Популярные страницы</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {stats.pages.map((p: any, i: number) => (
+            <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}>
+              <span className="text-sm truncate" style={{ maxWidth: "70%" }}>{p.page}</span>
+              <span className="font-semibold" style={{ color: "#FFC850" }}>{p.views}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminApp() {
   const [isDark, setIsDark] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -985,8 +1370,50 @@ export default function AdminApp() {
   // Data state
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [investments, setInvestments] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // Withdrawal modal state
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<any>(null);
+  const [withdrawalModalType, setWithdrawalModalType] = useState<'crypto' | 'bank' | 'reject' | null>(null);
+  const [withdrawalTxHash, setWithdrawalTxHash] = useState('');
+  const [copiedWallet, setCopiedWallet] = useState(false);
+  const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
+  const [newInvestment, setNewInvestment] = useState({ wallet_address: "", amount_usdt: "", tier_type: "staking" });
+  const [createInvestmentLoading, setCreateInvestmentLoading] = useState(false);
+  const [toast, setToast] = useState<{show: boolean, type: 'success' | 'error', title: string, message: string}>({show: false, type: 'success', title: '', message: ''});
+
+  const showToast = (type: 'success' | 'error', title: string, message: string) => {
+    setToast({show: true, type, title, message});
+    setTimeout(() => setToast(t => ({...t, show: false})), 4000);
+  };
+
+  const copyWalletToClipboard = async (text: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback для старых браузеров
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedWallet(true);
+      setTimeout(() => setCopiedWallet(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+      alert('Не удалось скопировать. Выделите текст вручную.');
+    }
+  };
+  const [withdrawalBankDetails, setWithdrawalBankDetails] = useState('');
+  const [withdrawalNotes, setWithdrawalNotes] = useState('');
+  const [withdrawalProcessing, setWithdrawalProcessing] = useState(false);
 
   // Check auth on mount
   useEffect(() => {
@@ -1021,6 +1448,9 @@ export default function AdminApp() {
         } else if (currentPage === 'investments') {
           const res = await api.getAdminInvestments({ network });
           if (res.data) setInvestments(res.data.investments || []);
+        } else if (currentPage === 'withdrawals') {
+          const res = await api.getAdminWithdrawals({ network });
+          if (res.data) setWithdrawals(res.data.withdrawals || []);
         } else if (currentPage === 'users') {
           const res = await api.getAdminUsers();
           if (res.data) setUsers(res.data.users || []);
@@ -1090,6 +1520,69 @@ export default function AdminApp() {
   if (!admin) {
     return <AdminLogin onLogin={handleLogin} />;
   }
+
+
+
+  const handleCreateInvestment = async () => {
+    if (!newInvestment.wallet_address || !newInvestment.amount_usdt) {
+      alert("Заполните все поля");
+      return;
+    }
+
+    const amount = parseInt(newInvestment.amount_usdt);
+    if (isNaN(amount) || amount < 1000) {
+      alert("Минимальная сумма: $1,000");
+      return;
+    }
+
+    if (newInvestment.tier_type === "car_share" && amount < 12400) {
+      alert("Минимум для доли в авто: $12,400");
+      return;
+    }
+
+    if (newInvestment.tier_type === "staking" && amount >= 12400) {
+      alert("Для суммы от $12,400 выберите тип Доля в авто");
+      return;
+    }
+
+    if (!/^0x[a-fA-F0-9]{40}$/.test(newInvestment.wallet_address)) {
+      alert("Некорректный адрес кошелька");
+      return;
+    }
+
+    setCreateInvestmentLoading(true);
+    const token = localStorage.getItem('auth_token');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/investments/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          wallet_address: newInvestment.wallet_address,
+          amount_usdt: amount,
+          tier_type: newInvestment.tier_type,
+          network: network
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setShowCreateInvestmentModal(false);
+        setNewInvestment({ wallet_address: "", amount_usdt: "", tier_type: "staking" });
+        showToast('success', 'Депозит создан', `$${amount.toLocaleString()} • ${newInvestment.tier_type === 'staking' ? 'Стейкинг' : 'Доля в авто'} • ${newInvestment.wallet_address.slice(0,6)}...${newInvestment.wallet_address.slice(-4)}`);
+        // Data will refresh on page reload
+      } else {
+        showToast('error', 'Ошибка', data.error || 'Не удалось создать депозит');
+      }
+    } catch (error) {
+      console.error("Create investment error:", error);
+      showToast('error', 'Ошибка сервера', 'Проверьте подключение и попробуйте снова');
+    } finally {
+      setCreateInvestmentLoading(false);
+    }
+  };
 
   const renderPage = () => {
     // Investment Detail View
@@ -1188,7 +1681,14 @@ export default function AdminApp() {
                         </div>
                         <div>
                           <span className="opacity-50 block text-xs" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>TX</span>
-                          {inv.tx_hash ? (
+                          {inv.tx_hash?.startsWith('admin_') || inv.tx_verification_status === 'admin_created' ? (
+                            <span
+                              className="px-2 py-0.5 rounded text-xs inline-block"
+                              style={{ background: 'rgba(147,51,234,0.2)', color: '#9333EA' }}
+                            >
+                              РУЧНОЙ
+                            </span>
+                          ) : inv.tx_hash ? (
                             <span
                               className="px-2 py-0.5 rounded text-xs inline-block"
                               style={{
@@ -1321,6 +1821,341 @@ export default function AdminApp() {
           </div>
         );
 
+      case 'withdrawals':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 700 }}>
+              Заявки на вывод
+            </h1>
+
+            {dataLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-[#009696]" />
+              </div>
+            ) : withdrawals.length === 0 ? (
+              <div
+                className="rounded-2xl p-12 text-center border"
+                style={{
+                  background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+                  borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
+                }}
+              >
+                <Wallet className="w-16 h-16 mx-auto mb-4" style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)' }} />
+                <h3 className="text-xl mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
+                  Нет заявок на вывод
+                </h3>
+                <p className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                  Все запросы обработаны
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {withdrawals.map((wd) => (
+                  <div
+                    key={wd.id}
+                    className="rounded-2xl p-6 border"
+                    style={{
+                      background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
+                      borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)'
+                    }}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
+                            Инвестиция #{wd.id}
+                          </h3>
+                          <span
+                            className="px-2 py-1 rounded-lg text-xs"
+                            style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#F59E0B' }}
+                          >
+                            Запрос на вывод
+                          </span>
+                        </div>
+                        <code className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                          {wd.wallet_address?.slice(0, 10)}...{wd.wallet_address?.slice(-8)}
+                        </code>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl" style={{ color: '#28B48C', fontWeight: 700 }}>
+                          ${Number(wd.return_amount || wd.amount_usdt || 0).toLocaleString()}
+                        </div>
+                        <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                          к выплате
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl mb-4" style={{ background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }}>
+                      <div>
+                        <div className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Инвестировано</div>
+                        <div style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>${Number(wd.amount_usdt || 0).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Заработано</div>
+                        <div style={{ color: '#28B48C', fontWeight: 600 }}>+${Number(wd.staking_earned || 0).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Комиссия</div>
+                        <div style={{ color: '#E74C3C', fontWeight: 600 }}>-${Number(wd.early_withdrawal_fee || 0).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Тип</div>
+                        <div style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{wd.tier_type === 'car_share' ? 'Доля в авто' : 'Стейкинг'}</div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => {
+                          setSelectedWithdrawal(wd);
+                          setWithdrawalModalType('crypto');
+                          setWithdrawalTxHash('');
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105"
+                        style={{ background: 'rgba(0, 150, 150, 0.2)', color: '#009696', fontWeight: 600 }}
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        Выплатить крипто
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedWithdrawal(wd);
+                          setWithdrawalModalType('bank');
+                          setWithdrawalBankDetails('');
+                          setWithdrawalNotes('');
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105"
+                        style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3B82F6', fontWeight: 600 }}
+                      >
+                        <FileText className="w-4 h-4" />
+                        Банковский перевод
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedWithdrawal(wd);
+                          setWithdrawalModalType('reject');
+                          setWithdrawalNotes('');
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105"
+                        style={{ background: 'rgba(231, 76, 60, 0.2)', color: '#E74C3C', fontWeight: 600 }}
+                      >
+                        <X className="w-4 h-4" />
+                        Отклонить
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Withdrawal Modal */}
+            {withdrawalModalType && selectedWithdrawal && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setWithdrawalModalType(null)}>
+                <div
+                  className="rounded-2xl w-full max-h-[90vh] overflow-y-auto"
+                  style={{ background: isDark ? '#1a3a4a' : '#FFFFFF', maxWidth: '450px' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+                    <h3 className="text-xl" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 700 }}>
+                      {withdrawalModalType === 'crypto' && 'Выплата криптовалютой'}
+                      {withdrawalModalType === 'bank' && 'Банковский перевод'}
+                      {withdrawalModalType === 'reject' && 'Отклонить заявку'}
+                    </h3>
+                    <button
+                      onClick={() => setWithdrawalModalType(null)}
+                      className="p-2 rounded-lg"
+                      style={{ background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+                    >
+                      <X className="w-5 h-5" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    {/* Info */}
+                    <div className="p-4 rounded-xl" style={{ background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }}>
+                      <div className="flex justify-between mb-2">
+                        <span style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Инвестиция</span>
+                        <span style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>#{selectedWithdrawal.id}</span>
+                      </div>
+                      <div className="mb-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Кошелёк</span>
+                          <button
+                            onClick={() => copyWalletToClipboard(selectedWithdrawal.wallet_address || '')}
+                            className="px-2 py-1 rounded text-xs flex items-center gap-1 transition-all hover:scale-105"
+                            style={{ background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#FFFAF0' : '#143C50' }}
+                          >
+                            {copiedWallet ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            {copiedWallet ? 'Скопировано!' : 'Копировать'}
+                          </button>
+                        </div>
+                        <code
+                          className="block text-sm font-mono p-2 rounded break-all select-all cursor-pointer"
+                          style={{ background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)', color: isDark ? '#FFFAF0' : '#143C50' }}
+                          onClick={() => copyWalletToClipboard(selectedWithdrawal.wallet_address || '')}
+                        >
+                          {selectedWithdrawal.wallet_address || 'Не указан'}
+                        </code>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Сумма к выплате</span>
+                        <span className="text-xl" style={{ color: '#28B48C', fontWeight: 700 }}>
+                          ${Number(selectedWithdrawal.return_amount || selectedWithdrawal.amount_usdt || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Crypto Form */}
+                    {withdrawalModalType === 'crypto' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Transaction Hash (TX Hash) *</label>
+                          <input
+                            type="text"
+                            value={withdrawalTxHash}
+                            onChange={(e) => setWithdrawalTxHash(e.target.value)}
+                            placeholder="0x..."
+                            className="w-full px-4 py-3 rounded-xl font-mono text-sm"
+                            style={{
+                              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                              color: isDark ? '#FFFAF0' : '#143C50'
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (!withdrawalTxHash.trim()) return;
+                            setWithdrawalProcessing(true);
+                            const res = await api.processWithdrawalCrypto(selectedWithdrawal.id, withdrawalTxHash.trim());
+                            if (res.data?.success) {
+                              setWithdrawalModalType(null);
+                              const refreshRes = await api.getAdminWithdrawals({ network });
+                              if (refreshRes.data) setWithdrawals(refreshRes.data.withdrawals || []);
+                            }
+                            setWithdrawalProcessing(false);
+                          }}
+                          disabled={!withdrawalTxHash.trim() || withdrawalProcessing}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all disabled:opacity-50"
+                          style={{ background: '#009696', color: '#FFFFFF', fontWeight: 600 }}
+                        >
+                          {withdrawalProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                          Подтвердить выплату
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Bank Form */}
+                    {withdrawalModalType === 'bank' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Реквизиты перевода / Номер операции</label>
+                          <input
+                            type="text"
+                            value={withdrawalBankDetails}
+                            onChange={(e) => setWithdrawalBankDetails(e.target.value)}
+                            placeholder="Номер операции, реквизиты..."
+                            className="w-full px-4 py-3 rounded-xl text-sm"
+                            style={{
+                              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                              color: isDark ? '#FFFAF0' : '#143C50'
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Комментарий</label>
+                          <textarea
+                            value={withdrawalNotes}
+                            onChange={(e) => setWithdrawalNotes(e.target.value)}
+                            placeholder="Дополнительная информация..."
+                            rows={3}
+                            className="w-full px-4 py-3 rounded-xl text-sm resize-none"
+                            style={{
+                              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                              color: isDark ? '#FFFAF0' : '#143C50'
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setWithdrawalProcessing(true);
+                            const res = await api.processWithdrawalBank(selectedWithdrawal.id, {
+                              bankDetails: withdrawalBankDetails.trim() || undefined,
+                              notes: withdrawalNotes.trim() || undefined,
+                            });
+                            if (res.data?.success) {
+                              setWithdrawalModalType(null);
+                              const refreshRes = await api.getAdminWithdrawals({ network });
+                              if (refreshRes.data) setWithdrawals(refreshRes.data.withdrawals || []);
+                            }
+                            setWithdrawalProcessing(false);
+                          }}
+                          disabled={withdrawalProcessing}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all disabled:opacity-50"
+                          style={{ background: '#3B82F6', color: '#FFFFFF', fontWeight: 600 }}
+                        >
+                          {withdrawalProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                          Подтвердить перевод
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Reject Form */}
+                    {withdrawalModalType === 'reject' && (
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-xl" style={{ background: 'rgba(231, 76, 60, 0.1)', border: '1px solid rgba(231, 76, 60, 0.2)' }}>
+                          <p style={{ color: '#E74C3C' }}>
+                            Заявка будет отклонена, а инвестиция вернётся в статус "Активна". Инвестор сможет подать заявку повторно.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Причина отклонения (опционально)</label>
+                          <textarea
+                            value={withdrawalNotes}
+                            onChange={(e) => setWithdrawalNotes(e.target.value)}
+                            placeholder="Укажите причину..."
+                            rows={3}
+                            className="w-full px-4 py-3 rounded-xl text-sm resize-none"
+                            style={{
+                              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                              color: isDark ? '#FFFAF0' : '#143C50'
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setWithdrawalProcessing(true);
+                            const res = await api.rejectWithdrawal(selectedWithdrawal.id, withdrawalNotes.trim() || undefined);
+                            if (res.data?.success) {
+                              setWithdrawalModalType(null);
+                              const refreshRes = await api.getAdminWithdrawals({ network });
+                              if (refreshRes.data) setWithdrawals(refreshRes.data.withdrawals || []);
+                            }
+                            setWithdrawalProcessing(false);
+                          }}
+                          disabled={withdrawalProcessing}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all disabled:opacity-50"
+                          style={{ background: '#E74C3C', color: '#FFFFFF', fontWeight: 600 }}
+                        >
+                          {withdrawalProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <X className="w-5 h-5" />}
+                          Отклонить заявку
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
       case 'users':
         return (
           <div className="space-y-6">
@@ -1379,7 +2214,7 @@ export default function AdminApp() {
                       </div>
 
                       {/* Investment Stats */}
-                      <div className="flex gap-6">
+                      <div className="flex gap-6 items-center">
                         <div className="text-center">
                           <div style={{ color: '#28B48C', fontWeight: 700, fontSize: '1.25rem' }}>
                             ${Number(user.total_invested_usdt || 0).toLocaleString()}
@@ -1396,6 +2231,17 @@ export default function AdminApp() {
                             Инвестиций
                           </div>
                         </div>
+                        <button
+                          onClick={() => {
+                            setNewInvestment({ wallet_address: user.wallet_address, amount_usdt: '', tier_type: 'staking' });
+                            setShowCreateInvestmentModal(true);
+                          }}
+                          className="px-3 py-2 rounded-lg flex items-center gap-1 transition-all hover:scale-105 text-sm"
+                          style={{ background: 'linear-gradient(135deg, #009696 0%, #28B48C 100%)', color: '#FFFAF0', fontWeight: 600 }}
+                        >
+                          <DollarSign className="w-4 h-4" />
+                          Депозит
+                        </button>
                       </div>
                     </div>
 
@@ -1463,19 +2309,8 @@ export default function AdminApp() {
         return <LogsPage isDark={isDark} />;
 
       case 'reports':
-        return (
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="text-6xl mb-4">📈</div>
-              <h2 className="text-2xl mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
-                Финансовые отчёты
-              </h2>
-              <p className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                Раздел в разработке
-              </p>
-            </div>
-          </div>
-        );
+        return <AnalyticsPage isDark={isDark} />;
+
 
       case 'settings':
         return <SettingsPage isDark={isDark} admin={admin} />;
@@ -1508,6 +2343,197 @@ export default function AdminApp() {
         </div>
       )}
       {renderPage()}
+
+      {/* Create Investment Modal */}
+      {/* Toast Notification */}
+            {toast.show && (
+              <div className="fixed top-4 right-4 z-[60] animate-in slide-in-from-top-2 fade-in duration-300">
+                <div 
+                  className="px-5 py-4 rounded-xl shadow-2xl flex items-start gap-4 min-w-[320px] max-w-[400px]"
+                  style={{ 
+                    background: isDark ? '#1a3a4a' : '#FFFFFF',
+                    border: `2px solid ${toast.type === 'success' ? '#28B48C' : '#E74C3C'}`
+                  }}
+                >
+                  <div 
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: toast.type === 'success' ? 'rgba(40,180,140,0.15)' : 'rgba(231,76,60,0.15)' }}
+                  >
+                    {toast.type === 'success' ? (
+                      <CheckCircle className="w-5 h-5" style={{ color: '#28B48C' }} />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5" style={{ color: '#E74C3C' }} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold mb-1" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                      {toast.title}
+                    </div>
+                    <div className="text-sm opacity-70 break-words" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                      {toast.message}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setToast(t => ({...t, show: false}))}
+                    className="p-1 rounded-lg opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+                  >
+                    <X className="w-4 h-4" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showCreateInvestmentModal && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-50" onClick={() => setShowCreateInvestmentModal(false)}>
+                <div
+                  className="rounded-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
+                  style={{ background: isDark ? '#1a3a4a' : '#FFFFFF', maxWidth: '460px' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className="px-5 sm:px-6 py-4 sm:py-5 border-b flex items-center justify-between" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #009696 0%, #28B48C 100%)' }}>
+                        <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg sm:text-xl" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 700 }}>
+                          Создать депозит
+                        </h3>
+                        <p className="text-xs sm:text-sm opacity-60 hidden sm:block" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Ручное добавление</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowCreateInvestmentModal(false)}
+                      className="p-2.5 rounded-xl transition-all active:scale-95"
+                      style={{ background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
+                    >
+                      <X className="w-5 h-5" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+                    </button>
+                  </div>
+
+                  {/* Content */}
+                  <div className="px-5 sm:px-6 py-5 sm:py-6 space-y-4 sm:space-y-5">
+                    {/* Warning */}
+                    <div className="px-4 py-3 rounded-xl flex items-center gap-3" style={{ background: 'rgba(147, 51, 234, 0.1)', border: '1px solid rgba(147, 51, 234, 0.2)' }}>
+                      <Shield className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" style={{ color: '#9333EA' }} />
+                      <span className="text-xs sm:text-sm" style={{ color: '#9333EA' }}>Депозит будет помечен как ручной</span>
+                    </div>
+
+                    {/* Wallet Info */}
+                    <div className="px-4 py-3 sm:py-4 rounded-xl" style={{ background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)' }}>
+                      <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                        <Wallet className="w-4 h-4 opacity-60" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+                        <span className="text-xs sm:text-sm opacity-60" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Кошелёк</span>
+                      </div>
+                      <code
+                        className="block text-xs sm:text-sm font-mono px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg break-all"
+                        style={{ background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.06)', color: isDark ? '#FFFAF0' : '#143C50' }}
+                      >
+                        {newInvestment.wallet_address || '0x...'}
+                      </code>
+                    </div>
+
+                    {/* Tier Type Selection */}
+                    <div>
+                      <label className="block text-xs sm:text-sm mb-3 px-1" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>Тип инвестиции</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => setNewInvestment({ ...newInvestment, tier_type: 'staking', amount_usdt: '' })}
+                          className="px-3 sm:px-4 py-4 sm:py-5 rounded-xl border-2 transition-all active:scale-[0.98] text-left"
+                          style={{ 
+                            background: newInvestment.tier_type === 'staking' ? 'rgba(0,150,150,0.1)' : (isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'),
+                            borderColor: newInvestment.tier_type === 'staking' ? '#009696' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)')
+                          }}
+                        >
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mb-2 sm:mb-3" style={{ background: newInvestment.tier_type === 'staking' ? '#009696' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') }}>
+                            <Activity className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: newInvestment.tier_type === 'staking' ? '#FFFFFF' : (isDark ? '#FFFAF0' : '#143C50') }} />
+                          </div>
+                          <div className="font-semibold text-sm sm:text-base mb-0.5" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Стейкинг</div>
+                          <div className="text-xs sm:text-sm" style={{ color: '#009696' }}>от $1,000</div>
+                        </button>
+                        <button
+                          onClick={() => setNewInvestment({ ...newInvestment, tier_type: 'car_share', amount_usdt: '' })}
+                          className="px-3 sm:px-4 py-4 sm:py-5 rounded-xl border-2 transition-all active:scale-[0.98] text-left"
+                          style={{ 
+                            background: newInvestment.tier_type === 'car_share' ? 'rgba(0,150,150,0.1)' : (isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'),
+                            borderColor: newInvestment.tier_type === 'car_share' ? '#009696' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)')
+                          }}
+                        >
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mb-2 sm:mb-3" style={{ background: newInvestment.tier_type === 'car_share' ? '#009696' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') }}>
+                            <Shield className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: newInvestment.tier_type === 'car_share' ? '#FFFFFF' : (isDark ? '#FFFAF0' : '#143C50') }} />
+                          </div>
+                          <div className="font-semibold text-sm sm:text-base mb-0.5" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Доля в авто</div>
+                          <div className="text-xs sm:text-sm" style={{ color: '#009696' }}>от $12,400</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Amount Input */}
+                    <div>
+                      <label className="block text-xs sm:text-sm mb-2 sm:mb-3 px-1" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
+                        Сумма (USD)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg sm:text-xl" style={{ color: '#28B48C', fontWeight: 700 }}>$</span>
+                        <input
+                          type="number"
+                          value={newInvestment.amount_usdt}
+                          onChange={(e) => setNewInvestment({ ...newInvestment, amount_usdt: e.target.value })}
+                          className="w-full pl-10 sm:pl-12 pr-4 sm:pr-5 py-4 sm:py-5 rounded-xl text-lg sm:text-xl"
+                          style={{ 
+                            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                            border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                            color: isDark ? '#FFFAF0' : '#143C50',
+                            fontWeight: 700
+                          }}
+                          placeholder={newInvestment.tier_type === 'staking' ? '1000' : '12400'}
+                          min={newInvestment.tier_type === 'staking' ? 1000 : 12400}
+                          step="100"
+                        />
+                      </div>
+                      <div className="mt-2 text-xs opacity-60 px-1" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+                        Мин: ${newInvestment.tier_type === 'staking' ? '1,000' : '12,400'}
+                      </div>
+                    </div>
+
+                    {/* Network Info */}
+                    <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)' }}>
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 opacity-60" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
+                        <span className="text-xs sm:text-sm opacity-60" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Сеть</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ background: network === 'testnet' ? '#F59E0B' : '#28B48C' }}></div>
+                        <span className="text-sm font-semibold" style={{ color: network === 'testnet' ? '#F59E0B' : '#28B48C' }}>
+                          {network === 'testnet' ? 'Testnet' : 'Mainnet'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      onClick={handleCreateInvestment}
+                      disabled={createInvestmentLoading || !newInvestment.amount_usdt}
+                      className="w-full flex items-center justify-center gap-2 sm:gap-3 px-5 py-4 sm:py-5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-lg"
+                      style={{ background: 'linear-gradient(135deg, #009696 0%, #28B48C 100%)', color: '#FFFFFF', fontWeight: 600 }}
+                    >
+                      {createInvestmentLoading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Создание...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5" />
+                          Создать депозит
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
     </AdminLayout>
   );
 }

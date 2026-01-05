@@ -3,6 +3,7 @@ import { Car, TrendingUp, Shield, Clock, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { api } from '../../services/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 import toyotaHeroImage from 'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png';
 
 interface HeroProps {
@@ -21,6 +22,7 @@ interface FundraisingData {
 }
 
 export function Hero({ isDark, onInvestClick }: HeroProps) {
+  const { t } = useLanguage();
   const [fundraising, setFundraising] = useState<FundraisingData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -80,7 +82,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
           >
             <Car className="w-4 h-4" style={{ color: '#009696' }} />
             <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              Инвестиции в рентал-бизнес через блокчейн
+              {t('hero.badge')}
             </span>
           </motion.div>
 
@@ -95,10 +97,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
               lineHeight: 1.1
             }}
           >
-            <span className="block sm:inline">Инвестируйте</span>{' '}
-            <span className="block sm:inline">в рентал-бизнес</span>
-            <br />
-            <span style={{ color: '#009696' }}>с криптовалютой</span>
+            <span className="block sm:inline">{t('hero.title')}</span>{' '}
+            <span className="block sm:inline">{t('hero.titleAccent')}</span>
           </motion.h1>
 
           <motion.p
@@ -111,10 +111,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
               opacity: 0.9
             }}
           >
-            <span className="block sm:inline">{totalCars} автомобилей Toyota</span>
-            <span className="hidden sm:inline"> • </span>
-            <span className="block sm:inline">От $1,000 • 2.5%/мес</span>
-            <span className="block sm:inline"> или авто в собственность</span>
+            {t('hero.subtitle', { count: totalCars })}
           </motion.p>
 
           {/* Key Stats */}
@@ -129,8 +126,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                 <Car className="w-5 h-5" style={{ color: '#28B48C' }} />
               </div>
               <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Авто доступно</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{carsAvailable} из {totalCars}</div>
+                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('hero.carsAvailable')}</div>
+                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{carsAvailable} {t('hero.of')} {totalCars}</div>
               </div>
             </div>
 
@@ -139,8 +136,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                 <TrendingUp className="w-5 h-5" style={{ color: '#009696' }} />
               </div>
               <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Стейкинг</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>2.5%/мес</div>
+                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('hero.staking')}</div>
+                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{t('hero.stakingRate')}</div>
               </div>
             </div>
 
@@ -149,8 +146,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                 <Shield className="w-5 h-5" style={{ color: '#FFC850' }} />
               </div>
               <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Крупным инвесторам</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>+20% или авто</div>
+                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('hero.bigInvestors')}</div>
+                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{t('hero.bigInvestorsReturn')}</div>
               </div>
             </div>
           </motion.div>
@@ -168,7 +165,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
               fontWeight: 600
             }}
           >
-            Инвестировать сейчас
+            {t('hero.cta')}
           </motion.button>
         </div>
 
@@ -189,10 +186,10 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
             <div>
               <h3 className="text-2xl mb-1" style={{ color: isDark ? '#FFC850' : '#143C50', fontWeight: 600 }}>
-                Сбор средств
+                {t('hero.fundraising')}
               </h3>
               <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                Инвесторов: {investorsCount} / {maxInvestors}
+                {t('hero.investors')}: {investorsCount}
               </p>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{
@@ -201,7 +198,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
             }}>
               <Clock className="w-4 h-4" style={{ color: '#FFC850' }} />
               <span className="text-sm" style={{ color: isDark ? '#FFC850' : '#143C50', fontWeight: 600 }}>
-                {daysLeft} дней осталось
+                {daysLeft} {t('hero.daysLeft')}
               </span>
             </div>
           </div>
@@ -214,7 +211,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                   ฿{currentBaht.toLocaleString()}
                 </div>
                 <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  ${currentUSD.toLocaleString()} USDT собрано
+                  ${currentUSD.toLocaleString()} USDT {t('hero.collected')}
                 </div>
               </div>
               <div className="text-right">
@@ -222,7 +219,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
                   {progress.toFixed(1)}%
                 </div>
                 <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  Цель: ฿{targetBaht.toLocaleString()}
+                  {t('hero.goal')}: ฿{targetBaht.toLocaleString()}
                 </div>
               </div>
             </div>
@@ -260,11 +257,11 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
             <div className="flex items-center gap-2">
               <Car className="w-5 h-5" style={{ color: '#28B48C' }} />
               <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                Авто в собственность: {carsAvailable} свободно
+                {t('hero.carOwnership')}: {carsAvailable} {t('hero.available')}
               </span>
             </div>
             <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              Min: $1,000 (стейкинг) • $12,400 (авто)
+              {t('hero.minStaking')} • {t('hero.minCar')}
             </div>
           </div>
         </motion.div>

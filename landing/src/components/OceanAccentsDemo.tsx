@@ -343,7 +343,7 @@ export function OceanAccentsDemo() {
 
       <Card className="border-[#4A9FD8]/20 bg-gradient-to-br from-[#4A9FD8]/5 to-[#52C9C1]/5 p-6">
         <h3 style={{ fontSize: '18px', fontWeight: 600 }} className="mb-2">
-          💡 Usage Tips
+          Usage Tips
         </h3>
         <ul className="space-y-2 text-muted-foreground" style={{ fontSize: '14px' }}>
           <li>• <strong>FloatingBubbles:</strong> Use on main background with low opacity (0.12-0.15)</li>

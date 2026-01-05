@@ -10,6 +10,8 @@ const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
 const profileRoutes = require('./routes/profile');
 const chatRoutes = require('./routes/chat');
+const telegramRoutes = require('./routes/telegram');
+const analyticsRoutes = require('./routes/analytics');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,7 +22,7 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['https://saturway.space', 'https://www.saturway.space'],
+  origin: ['https://saturway.space', 'https://www.saturway.space', 'https://saturway.com', 'https://www.saturway.com'],
   credentials: true
 }));
 
@@ -48,6 +50,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/telegram', telegramRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {

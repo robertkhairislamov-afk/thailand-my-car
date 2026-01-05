@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import {
-  ArrowRight,
-  Sparkles,
+import { 
+  ArrowRight, 
+  Sparkles, 
   TrendingUp,
   Users,
   Star,
@@ -26,8 +26,7 @@ import {
   Coins,
   Building2,
   Award,
-  Lightbulb,
-  MessageCircle
+  Lightbulb
 } from 'lucide-react';
 import { AnimatedOceanCard } from './AnimatedOceanCard';
 import { useLanguage } from './LanguageContext';
@@ -36,7 +35,6 @@ import { ThemeToggleDark } from './ThemeToggle';
 import { ProjectModal } from './ProjectModal';
 import { MobileBottomSheet } from './MobileBottomSheet';
 import { CookieConsent } from './CookieConsent';
-import { SupportModal } from './SupportModal';
 import logoImage from 'figma:asset/443c5c749ebfe974980617b9c917b81b051ddc82.png';
 import thailandBg from 'figma:asset/8703d1eade1f26db4f0daf0c4127ca966e251655.png';
 import saturwayBg from 'figma:asset/63ee1135d2de80d559031f3410debd4eccdd3ec3.png';
@@ -45,7 +43,6 @@ export function Landing() {
   const { t, language, setLanguage } = useLanguage();
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   // Detect mobile device
   useEffect(() => {
@@ -82,6 +79,8 @@ export function Landing() {
         t('landing.projects.aiOrganizer.feature2'),
         t('landing.projects.aiOrganizer.feature3'),
         t('landing.projects.aiOrganizer.feature4'),
+        t('landing.projects.aiOrganizer.feature5'),
+        t('landing.projects.aiOrganizer.feature6'),
       ],
       status: 'active' as const,
       link: '#',
@@ -110,9 +109,11 @@ export function Landing() {
         t('landing.projects.thailandCar.feature2'),
         t('landing.projects.thailandCar.feature3'),
         t('landing.projects.thailandCar.feature4'),
+        t('landing.projects.thailandCar.feature5'),
+        t('landing.projects.thailandCar.feature6'),
       ],
       status: 'active' as const,
-      link: '/thailand-my-car',
+      link: 'https://thailand-my-car.com',
       gradient: 'from-[#0D9488] to-[#14B8A6]',
       colors: {
         primary: '#0D9488',
@@ -144,12 +145,12 @@ export function Landing() {
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 z-50 w-full border-b border-border/50 bg-card/98 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4">
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] p-1">
+            <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] p-1">
               <img src={logoImage} alt="Saturway" className="h-full w-full object-contain" />
             </div>
-            <span className="bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] bg-clip-text text-lg md:text-xl font-bold text-transparent">
+            <span className="bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] bg-clip-text text-base sm:text-lg md:text-xl font-bold text-transparent">
               Saturway
             </span>
           </div>
@@ -268,101 +269,99 @@ export function Landing() {
             </p>
           </div>
 
-          {/* Mobile: Swipeable Carousel */}
-          <div className="md:hidden overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4">
-            <div className="flex gap-4 pb-4">
-              {projects.map((project) => (
-                <div key={project.id} className="min-w-[90vw] snap-center">
-                  <AnimatedOceanCard delay={0}>
-                    <div 
-                      className="relative overflow-hidden p-6"
-                      style={
-                        project.id === 'thailand-car'
-                          ? {
-                              backgroundImage: `url(${thailandBg})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
-                            }
-                          : project.id === 'ai-organizer'
-                          ? {
-                              backgroundImage: `url(${saturwayBg})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
-                            }
-                          : undefined
-                      }
-                    >
-                      {/* Overlay for projects with background */}
-                      {project.id === 'thailand-car' && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#0D9488]/50 to-[#14B8A6]/45" />
-                      )}
-                      {project.id === 'ai-organizer' && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#4A9FD8]/50 to-[#52C9C1]/45" />
-                      )}
+          {/* Mobile: Vertical Stack - All Projects Visible */}
+          <div className="md:hidden space-y-4">
+            {projects.map((project, index) => (
+              <div key={project.id}>
+                <AnimatedOceanCard delay={index * 0.1}>
+                  <div 
+                    className="relative overflow-hidden p-6"
+                    style={
+                      project.id === 'thailand-car'
+                        ? {
+                            backgroundImage: `url(${thailandBg})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                          }
+                        : project.id === 'ai-organizer'
+                        ? {
+                            backgroundImage: `url(${saturwayBg})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                          }
+                        : undefined
+                    }
+                  >
+                    {/* Overlay for projects with background */}
+                    {project.id === 'thailand-car' && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#0D9488]/50 to-[#14B8A6]/45" />
+                    )}
+                    {project.id === 'ai-organizer' && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#4A9FD8]/50 to-[#52C9C1]/45" />
+                    )}
 
-                      <div className="relative z-10">
-                        {/* Project Header */}
-                        <div className="mb-4 flex items-start justify-between">
-                          <div
-                            className={`flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-br ${project.gradient} ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'shadow-lg' : ''}`}
-                          >
-                            <project.icon className="h-6 w-6 md:h-8 md:w-8 text-white" />
-                          </div>
-                          <div className={`inline-flex items-center gap-1.5 md:gap-2 rounded-full ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'bg-white/20 backdrop-blur-sm' : 'bg-green-500/10'} px-2.5 md:px-3 py-1 text-xs md:text-sm ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white' : 'text-green-600'}`}>
-                            <div className={`h-1.5 w-1.5 md:h-2 md:w-2 rounded-full ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'bg-white' : 'bg-green-500'}`}></div>
-                            {t('landing.projects.active')}
-                          </div>
-                        </div>
-
-                        {/* Project Info */}
-                        <div className={`mb-1.5 text-xs md:text-sm ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white/80' : 'text-muted-foreground'}`}>
-                          {project.category}
-                        </div>
-                        <h3 className={`mb-2.5 text-xl md:text-2xl font-bold ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white' : ''}`}>
-                          {project.name}
-                        </h3>
-                        <p className={`mb-4 md:mb-6 text-sm md:text-base leading-relaxed ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white/90' : 'text-muted-foreground'}`}>
-                          {project.description}
-                        </p>
-
-                        {/* Metrics */}
-                        <div className="mb-4 md:mb-6 grid grid-cols-2 gap-2 md:gap-3">
-                          {Object.entries(project.metrics).slice(0, 4).map(([key, value], idx) => (
-                            <div 
-                              key={idx} 
-                              className={`rounded-lg border p-2 md:p-3 text-center ${
-                                (project.id === 'thailand-car' || project.id === 'ai-organizer')
-                                  ? 'border-white/30 bg-white/20 backdrop-blur-sm' 
-                                  : 'border-border bg-muted/30'
-                              }`}
-                            >
-                              <div className={`text-base md:text-lg font-bold ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white' : ''}`} style={(project.id !== 'thailand-car' && project.id !== 'ai-organizer') ? { color: project.colors.primary } : undefined}>
-                                {value}
-                              </div>
-                              <div className={`text-[10px] md:text-xs capitalize ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white/80' : 'text-muted-foreground'}`}>
-                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* CTA - Touch Friendly */}
-                        <button
-                          onClick={() => setSelectedProject(project)}
-                          className={`group/btn flex w-full min-h-[52px] md:min-h-[56px] items-center justify-center gap-2 rounded-xl px-5 md:px-6 py-3 md:py-4 text-sm md:text-base text-white transition-all hover:shadow-lg active:scale-95 ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'shadow-xl' : ''}`}
-                          style={{
-                            background: `linear-gradient(135deg, ${project.colors.primary}, ${project.colors.secondary})`,
-                          }}
+                    <div className="relative z-10">
+                      {/* Project Header */}
+                      <div className="mb-4 flex items-start justify-between">
+                        <div
+                          className={`flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-br ${project.gradient} ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'shadow-lg' : ''}`}
                         >
-                          {t('landing.projects.viewDetails')}
-                          <ArrowRight className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover/btn:translate-x-1" />
-                        </button>
+                          <project.icon className="h-6 w-6 md:h-8 md:w-8 text-white" />
+                        </div>
+                        <div className={`inline-flex items-center gap-1.5 md:gap-2 rounded-full ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'bg-white/20 backdrop-blur-sm' : 'bg-green-500/10'} px-2.5 md:px-3 py-1 text-xs md:text-sm ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white' : 'text-green-600'}`}>
+                          <div className={`h-1.5 w-1.5 md:h-2 md:w-2 rounded-full ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'bg-white' : 'bg-green-500'}`}></div>
+                          {t('landing.projects.active')}
+                        </div>
                       </div>
+
+                      {/* Project Info */}
+                      <div className={`mb-1.5 text-xs md:text-sm ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white/80' : 'text-muted-foreground'}`}>
+                        {project.category}
+                      </div>
+                      <h3 className={`mb-2.5 text-xl md:text-2xl font-bold ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white' : ''}`}>
+                        {project.name}
+                      </h3>
+                      <p className={`mb-4 md:mb-6 text-sm md:text-base leading-relaxed ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white/90' : 'text-muted-foreground'}`}>
+                        {project.description}
+                      </p>
+
+                      {/* Metrics */}
+                      <div className="mb-4 md:mb-6 grid grid-cols-2 gap-2 md:gap-3">
+                        {Object.entries(project.metrics).slice(0, 4).map(([key, value], idx) => (
+                          <div 
+                            key={idx} 
+                            className={`rounded-lg border p-2 md:p-3 text-center ${
+                              (project.id === 'thailand-car' || project.id === 'ai-organizer')
+                                ? 'border-white/30 bg-white/20 backdrop-blur-sm' 
+                                : 'border-border bg-muted/30'
+                            }`}
+                          >
+                            <div className={`text-base md:text-lg font-bold ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white' : ''}`} style={(project.id !== 'thailand-car' && project.id !== 'ai-organizer') ? { color: project.colors.primary } : undefined}>
+                              {value}
+                            </div>
+                            <div className={`text-[10px] md:text-xs capitalize ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'text-white/80' : 'text-muted-foreground'}`}>
+                              {key.replace(/([A-Z])/g, ' $1').trim()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* CTA - Touch Friendly */}
+                      <button
+                        onClick={() => setSelectedProject(project)}
+                        className={`group/btn flex w-full min-h-[52px] md:min-h-[56px] items-center justify-center gap-2 rounded-xl px-5 md:px-6 py-3 md:py-4 text-sm md:text-base text-white transition-all hover:shadow-lg active:scale-95 ${(project.id === 'thailand-car' || project.id === 'ai-organizer') ? 'shadow-xl' : ''}`}
+                        style={{
+                          background: `linear-gradient(135deg, ${project.colors.primary}, ${project.colors.secondary})`,
+                        }}
+                      >
+                        {t('landing.projects.viewDetails')}
+                        <ArrowRight className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover/btn:translate-x-1" />
+                      </button>
                     </div>
-                  </AnimatedOceanCard>
-                </div>
-              ))}
-            </div>
+                  </div>
+                </AnimatedOceanCard>
+              </div>
+            ))}
           </div>
 
           {/* Desktop: Grid */}
@@ -718,12 +717,12 @@ export function Landing() {
                     <p className="mb-4 md:mb-6 text-xs md:text-sm text-muted-foreground">
                       {t('landing.cta.thailandCarDesc')}
                     </p>
-                    <a
-                      href="/thailand-my-car"
-                      className="flex items-center justify-center w-full min-h-[52px] md:min-h-[56px] rounded-xl bg-gradient-to-r from-[#0D9488] to-[#14B8A6] px-6 md:px-8 py-3 md:py-4 text-sm md:text-base text-white transition-all hover:shadow-lg active:scale-95"
+                    <button
+                      onClick={() => window.open('https://saturway.space/thailand-my-car/', '_blank')}
+                      className="w-full min-h-[52px] md:min-h-[56px] rounded-xl bg-gradient-to-r from-[#0D9488] to-[#14B8A6] px-6 md:px-8 py-3 md:py-4 text-sm md:text-base text-white transition-all hover:shadow-lg active:scale-95"
                     >
                       {t('landing.cta.thailandCarBtn')}
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -801,22 +800,6 @@ export function Landing() {
 
       {/* Cookie Consent */}
       <CookieConsent />
-
-      {/* Support Modal */}
-      <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
-
-      {/* Floating Support Button */}
-      <button
-        onClick={() => setIsSupportOpen(true)}
-        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 p-4 rounded-full shadow-2xl transition-all hover:scale-110 z-[9997] group"
-        style={{
-          background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-          boxShadow: '0 4px 20px rgba(99, 102, 241, 0.5)',
-        }}
-        title={language === 'ru' ? 'Поддержка' : 'Support'}
-      >
-        <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-white transition-transform group-hover:scale-110" />
-      </button>
     </div>
   );
 }

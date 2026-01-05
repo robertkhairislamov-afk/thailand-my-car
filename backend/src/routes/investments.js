@@ -566,14 +566,41 @@ router.get('/my', authenticateToken, async (req, res) => {
 });
 
 // Request withdrawal (user creates request, admin approves)
-router.post('/withdraw-request/:id', authenticateToken, async (req, res) => {
+// Can authenticate via token OR wallet address
+router.post('/withdraw-request/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const { withdrawalWallet, withdrawalType = 'all', network = 'mainnet' } = req.body;
 
+    // Validate withdrawal wallet address (BEP20 format)
+    if (!withdrawalWallet || !/^0x[a-fA-F0-9]{40}$/.test(withdrawalWallet)) {
+      return res.status(400).json({ error: 'Invalid BEP20 wallet address' });
+    }
+
+    // Validate withdrawal type
+    if (!['earnings', 'principal', 'all'].includes(withdrawalType)) {
+      return res.status(400).json({ error: 'Invalid withdrawal type' });
+    }
+
+    // Try to get user from token first
+    let userId = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader) {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          userId = decoded.id;
+        } catch (e) {
+          // Token invalid, continue with wallet address
+        }
+      }
+    }
+
+    // Find investment by ID and verify ownership via wallet address
     const investment = await pool.query(
-      `SELECT * FROM investments WHERE id = $1 AND user_id = $2`,
-      [id, userId]
+      `SELECT * FROM investments WHERE id = $1 AND network = $2`,
+      [id, network]
     );
 
     if (investment.rows.length === 0) {
@@ -586,67 +613,128 @@ router.post('/withdraw-request/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Investment must be active to request withdrawal' });
     }
 
-    if (inv.tier_type !== 'staking') {
-      return res.status(400).json({ error: 'Withdrawal request is only for staking investments' });
+    if (!['staking', 'car_share'].includes(inv.tier_type)) {
+      return res.status(400).json({ error: 'Invalid investment type for withdrawal' });
     }
 
-    // Calculate amounts
-    const lockPeriodMonths = parseInt(await getSetting('staking_lock_period_months', '12'));
-    const monthlyRate = parseFloat(await getSetting('staking_monthly_rate', '2.5')) / 100;
-    const earlyFeePercent = parseFloat(await getSetting('early_withdrawal_fee', '5')) / 100;
-
+    const principal = parseFloat(inv.amount_usdt);
     const investedAt = new Date(inv.invested_at);
     const now = new Date();
     const monthsPassed = (now.getFullYear() - investedAt.getFullYear()) * 12 +
                          (now.getMonth() - investedAt.getMonth());
 
+    let lockPeriodMonths, monthlyRate, totalEarnings, isUnlocked, earlyFee, baseFee, totalFee, withdrawalAmount;
+    const baseFeePercent = parseFloat(await getSetting('base_withdrawal_fee', '3')) / 100; // 3% всегда
+    const earlyFeePercent = parseFloat(await getSetting('early_withdrawal_fee', '5')) / 100; // +5% за ранний вывод
+
+    if (inv.tier_type === 'staking') {
+      // Staking: 2.5% monthly, 12 month lock
+      lockPeriodMonths = parseInt(await getSetting('staking_lock_period_months', '12'));
+      monthlyRate = parseFloat(await getSetting('staking_monthly_rate', '2.5')) / 100;
+
+      const lastCalc = new Date(inv.last_staking_calc || inv.invested_at);
+      const calcMonthsDiff = (now.getFullYear() - lastCalc.getFullYear()) * 12 +
+                             (now.getMonth() - lastCalc.getMonth());
+      const pendingEarnings = principal * monthlyRate * calcMonthsDiff;
+      totalEarnings = (parseFloat(inv.staking_earned) || 0) + pendingEarnings;
+    } else {
+      // Car share: 20% return after 6 months
+      lockPeriodMonths = 6;
+      const carShareReturn = parseFloat(await getSetting('large_investor_return', '20')) / 100;
+      // Proportional earnings based on months passed (max 6 months)
+      const effectiveMonths = Math.min(monthsPassed, lockPeriodMonths);
+      totalEarnings = principal * carShareReturn * (effectiveMonths / lockPeriodMonths);
+    }
+
     const unlockDate = new Date(investedAt);
     unlockDate.setMonth(unlockDate.getMonth() + lockPeriodMonths);
-    const isUnlocked = now >= unlockDate;
+    isUnlocked = now >= unlockDate;
 
-    // Calculate earnings
-    const lastCalc = new Date(inv.last_staking_calc || inv.invested_at);
-    const calcMonthsDiff = (now.getFullYear() - lastCalc.getFullYear()) * 12 +
-                           (now.getMonth() - lastCalc.getMonth());
-    const pendingEarnings = parseFloat(inv.amount_usdt) * monthlyRate * calcMonthsDiff;
-    const totalEarnings = (parseFloat(inv.staking_earned) || 0) + pendingEarnings;
-
-    const principal = parseFloat(inv.amount_usdt);
     const totalWithEarnings = principal + totalEarnings;
 
-    let withdrawalAmount, earlyFee;
-    if (isUnlocked) {
-      withdrawalAmount = totalWithEarnings;
-      earlyFee = 0;
-    } else {
-      earlyFee = totalWithEarnings * earlyFeePercent;
-      withdrawalAmount = totalWithEarnings - earlyFee;
+    // Calculate withdrawal amount based on type
+    let baseAmount = 0;
+    let withdrawalDescription = '';
+
+    switch (withdrawalType) {
+      case 'earnings':
+        // Only earnings - base fee always applies
+        baseAmount = totalEarnings;
+        baseFee = baseAmount * baseFeePercent;
+        earlyFee = 0; // No early fee for earnings-only withdrawal
+        totalFee = baseFee;
+        withdrawalAmount = baseAmount - totalFee;
+        withdrawalDescription = `Earnings only with ${baseFeePercent * 100}% base fee`;
+        break;
+      case 'principal':
+        // Only principal - base fee + early fee if locked
+        baseAmount = principal;
+        baseFee = baseAmount * baseFeePercent;
+        if (isUnlocked) {
+          earlyFee = 0;
+          totalFee = baseFee;
+          withdrawalDescription = `Principal only with ${baseFeePercent * 100}% base fee (unlocked)`;
+        } else {
+          earlyFee = baseAmount * earlyFeePercent;
+          totalFee = baseFee + earlyFee;
+          withdrawalDescription = `Principal only with ${baseFeePercent * 100}% base + ${earlyFeePercent * 100}% early fee`;
+        }
+        withdrawalAmount = baseAmount - totalFee;
+        break;
+      case 'all':
+      default:
+        // Full withdrawal - base fee + early fee if locked
+        baseAmount = totalWithEarnings;
+        baseFee = baseAmount * baseFeePercent;
+        if (isUnlocked) {
+          earlyFee = 0;
+          totalFee = baseFee;
+          withdrawalDescription = `Full withdrawal with ${baseFeePercent * 100}% base fee (unlocked)`;
+        } else {
+          earlyFee = baseAmount * earlyFeePercent;
+          totalFee = baseFee + earlyFee;
+          withdrawalDescription = `Full withdrawal with ${baseFeePercent * 100}% base + ${earlyFeePercent * 100}% early fee`;
+        }
+        withdrawalAmount = baseAmount - totalFee;
+        break;
     }
 
     // Update investment status and store calculated amounts
+    // ALL withdrawal types now require admin approval
+    // Status changes to 'withdrawal_requested', earnings are NOT reset until admin approves
+    const newStatus = 'withdrawal_requested';
+
+    // Store the withdrawal request - do NOT reset earnings yet (wait for admin approval)
+    // early_withdrawal_fee now stores TOTAL fee (base + early)
     await pool.query(`
       UPDATE investments
-      SET status = 'withdrawal_requested',
-          staking_earned = $1,
+      SET status = $1,
+          staking_earned = $2,
           last_staking_calc = CURRENT_TIMESTAMP,
-          return_amount = $2,
-          early_withdrawal_fee = $3
-      WHERE id = $4
-    `, [totalEarnings, withdrawalAmount, earlyFee, id]);
+          return_amount = $3,
+          early_withdrawal_fee = $4,
+          withdrawal_wallet = $5,
+          withdrawal_type = $6
+      WHERE id = $7
+    `, [newStatus, totalEarnings, withdrawalAmount, totalFee, withdrawalWallet.toLowerCase(), withdrawalType, id]);
 
     // Log the request
     await pool.query(`
       INSERT INTO staking_log (investment_id, type, amount, rate_applied, notes)
       VALUES ($1, 'withdrawal_request', $2, $3, $4)
-    `, [id, withdrawalAmount, earlyFee, isUnlocked ? 'Full withdrawal (unlocked)' : `Early withdrawal with ${earlyFeePercent * 100}% fee`]);
+    `, [id, withdrawalAmount, totalFee, withdrawalDescription]);
 
     res.json({
       success: true,
       message: 'Withdrawal request submitted',
       principal,
       total_earnings: totalEarnings,
+      base_fee: baseFee,
       early_fee: earlyFee,
+      total_fee: totalFee,
       withdrawal_amount: withdrawalAmount,
+      withdrawal_type: withdrawalType,
+      withdrawal_wallet: withdrawalWallet,
       is_early: !isUnlocked,
       months_passed: monthsPassed
     });
@@ -666,6 +754,7 @@ router.get('/wallet/:address', async (req, res) => {
     const result = await pool.query(`
       SELECT i.id, i.amount_usdt, i.amount_baht, i.status, i.invested_at, i.maturity_date,
              i.tier_type, i.staking_earned, i.investor_choice, i.car_assigned, i.car_number,
+             i.total_withdrawn_earnings,
              t.name as tier_name, t.return_percentage
       FROM investments i
       JOIN investment_tiers t ON i.tier_id = t.id
@@ -732,8 +821,8 @@ router.get('/fundraising', async (req, res) => {
     const targetBaht = targetUSD * exchangeRate;
     const deadline = '2026-01-31T23:59:59';
 
-    const currentBaht = parseFloat(stats.current_baht) || 0;
     const currentUSD = parseFloat(stats.current_usd) || 0;
+    const currentBaht = currentUSD * exchangeRate; // Calculate from USD using current rate
     const investorsCount = parseInt(stats.investors_count) || 0;
     const progress = targetBaht > 0 ? (currentBaht / targetBaht) * 100 : 0;
 

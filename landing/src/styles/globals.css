@@ -360,4 +360,17 @@ html {
   .active\:scale-95:active {
     transform: scale(0.95);
   }
+  
+  /* Responsive font sizes for very small screens */
+  @media (max-width: 375px) {
+    :root {
+      --font-size: 15px;
+    }
+  }
+  
+  @media (max-width: 320px) {
+    :root {
+      --font-size: 14px;
+    }
+  }
 }

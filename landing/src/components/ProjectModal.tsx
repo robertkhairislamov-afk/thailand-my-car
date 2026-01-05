@@ -1,6 +1,9 @@
-import { motion, AnimatePresence } from 'motion/react';
-import { X, ExternalLink, TrendingUp, Users, Calendar, CheckCircle2 } from 'lucide-react';
+import { X, ExternalLink, TrendingUp, Users, Calendar, CheckCircle2, Globe, Rocket } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
+import { motion, AnimatePresence } from 'motion/react';
+import { useEffect } from 'react';
+import festivalImage from 'figma:asset/1645a1481e96954e4d43a544ecd6721d1f172739.png';
+import pattayaMapImage from 'figma:asset/e83b51a128ebc85bfa8d33a089cb92f5c68168e7.png';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -174,6 +177,143 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                   </p>
                 </div>
 
+                {/* Two Revenue Engines - Only for Thailand Car */}
+                {project.id === 'thailand-car' && (
+                  <div className="mb-8">
+                    <h3 className="mb-6 text-2xl font-bold text-center">
+                      {t('landing.projects.modal.revenueStrategy.title')}
+                    </h3>
+                    
+                    {/* Pattaya Map Image */}
+                    <div className="mb-8 rounded-2xl overflow-hidden">
+                      <img 
+                        src={pattayaMapImage} 
+                        alt="Pattaya Strategic Map"
+                        className="w-full h-auto"
+                      />
+                    </div>
+
+                    {/* Two Columns */}
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {/* Foundation Column */}
+                      <div className="rounded-2xl border-2 border-border bg-gradient-to-br from-blue-500/5 to-cyan-500/5 p-6">
+                        <div className="mb-4 flex items-center gap-3">
+                          <div className="rounded-full bg-blue-500/10 p-3">
+                            <Globe className="h-6 w-6 text-blue-500" />
+                          </div>
+                          <h4 className="text-xl font-bold">
+                            {t('landing.projects.modal.revenueStrategy.foundation.title')}
+                          </h4>
+                        </div>
+                        
+                        <p className="mb-4 text-muted-foreground">
+                          {t('landing.projects.modal.revenueStrategy.foundation.description')}
+                        </p>
+
+                        <div className="space-y-3">
+                          <div className="rounded-lg bg-background/50 p-3">
+                            <div className="font-semibold mb-1">
+                              {t('landing.projects.modal.revenueStrategy.foundation.gcc.title')}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {t('landing.projects.modal.revenueStrategy.foundation.gcc.description')}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg bg-background/50 p-3">
+                            <div className="font-semibold mb-1">
+                              {t('landing.projects.modal.revenueStrategy.foundation.china.title')}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {t('landing.projects.modal.revenueStrategy.foundation.china.description')}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg bg-background/50 p-3">
+                            <div className="font-semibold mb-1">
+                              {t('landing.projects.modal.revenueStrategy.foundation.europe.title')}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {t('landing.projects.modal.revenueStrategy.foundation.europe.description')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Growth Driver Column */}
+                      <div className="rounded-2xl border-2 border-border bg-gradient-to-br from-orange-500/5 to-red-500/5 p-6">
+                        <div className="mb-4 flex items-center gap-3">
+                          <div className="rounded-full bg-orange-500/10 p-3">
+                            <Rocket className="h-6 w-6 text-orange-500" />
+                          </div>
+                          <h4 className="text-xl font-bold">
+                            {t('landing.projects.modal.revenueStrategy.growth.title')}
+                          </h4>
+                        </div>
+                        
+                        <p className="mb-4 text-muted-foreground">
+                          {t('landing.projects.modal.revenueStrategy.growth.description')}
+                        </p>
+
+                        <div className="space-y-3 mb-4">
+                          <div className="rounded-lg bg-background/50 p-3">
+                            <div className="font-semibold mb-1">
+                              {t('landing.projects.modal.revenueStrategy.growth.music.title')}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {t('landing.projects.modal.revenueStrategy.growth.music.description')}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg bg-background/50 p-3">
+                            <div className="font-semibold mb-1">
+                              {t('landing.projects.modal.revenueStrategy.growth.sports.title')}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {t('landing.projects.modal.revenueStrategy.growth.sports.description')}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg bg-background/50 p-3">
+                            <div className="font-semibold mb-1">
+                              {t('landing.projects.modal.revenueStrategy.growth.effect.title')}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {t('landing.projects.modal.revenueStrategy.growth.effect.description')}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Festival Image */}
+                        <div className="rounded-xl overflow-hidden">
+                          <img 
+                            src={festivalImage} 
+                            alt="Festival with Toyota Cars"
+                            className="w-full h-auto"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Conclusion Box */}
+                    <div className="mt-6 rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="rounded-full bg-emerald-500/20 p-2">
+                          <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold mb-2 text-lg">
+                            {t('landing.projects.modal.revenueStrategy.conclusion.title')}
+                          </h4>
+                          <p className="text-muted-foreground">
+                            {t('landing.projects.modal.revenueStrategy.conclusion.description')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Features */}
                 <div className="mb-8">
                   <h3 className="mb-4 text-2xl font-bold">
@@ -212,8 +352,8 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                     )}
                     
                     {project.id === 'thailand-car' && (
-                      <a
-                        href="/thailand-my-car"
+                      <button
+                        onClick={() => window.open('https://saturway.space/thailand-my-car/', '_blank')}
                         className="group flex flex-1 items-center justify-center gap-2 rounded-xl px-8 py-4 text-lg text-white transition-all hover:shadow-lg"
                         style={{
                           background: `linear-gradient(135deg, ${project.colors.primary}, ${project.colors.secondary})`,
@@ -221,7 +361,7 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                       >
                         {t('landing.projects.modal.goToProject')}
                         <ExternalLink className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                      </a>
+                      </button>
                     )}
                   </div>
                 )}

@@ -25,10 +25,10 @@ export function HabitChallenge({}: HabitChallengeProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const habitOptions = [
-    { id: 'focus' as HabitType, icon: Target, label: t('habit.focusSession'), emoji: '⏱' },
-    { id: 'energy' as HabitType, icon: Zap, label: t('habit.trackEnergy'), emoji: '⚡' },
-    { id: 'task' as HabitType, icon: CheckCircle2, label: t('habit.oneTask'), emoji: '✅' },
-    { id: 'custom' as HabitType, icon: Edit3, label: t('habit.custom'), emoji: '➕' },
+    { id: 'focus' as HabitType, icon: Target, label: t('habit.focusSession') },
+    { id: 'energy' as HabitType, icon: Zap, label: t('habit.trackEnergy') },
+    { id: 'task' as HabitType, icon: CheckCircle2, label: t('habit.oneTask') },
+    { id: 'custom' as HabitType, icon: Edit3, label: t('habit.custom') },
   ];
 
   const handleStartChallenge = (habitId: HabitType) => {
