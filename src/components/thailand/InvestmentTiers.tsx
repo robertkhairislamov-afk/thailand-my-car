@@ -35,8 +35,8 @@ interface PlatformSettings {
 }
 
 const featureIcons: Record<string, any> = {
-  '2.5%': Percent,
-  '30%': Percent,
+  '1.7%': Percent,
+  '20.4%': Percent,
   '+20%': TrendingUp,
   'месяц': Clock,
   'Вывод': DollarSign,
@@ -56,7 +56,7 @@ function getIconForFeature(feature: string) {
 
 // Feature translation keys mapping (Russian text -> translation key)
 const featureTranslationKeys: Record<string, string> = {
-  '2.5% в месяц (30% годовых)': 'tiers.feature.monthlyRate',
+  '1.7% в месяц (20.4% годовых)': 'tiers.feature.monthlyRate',
   'Вывод в любой момент': 'tiers.feature.withdrawAnytime',
   '5% комиссия при выводе до 6 мес': 'tiers.feature.earlyFee',
   'Ежемесячное начисление процентов': 'tiers.feature.monthlyAccrual',
@@ -243,10 +243,10 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                           color: '#FFC850',
                           fontWeight: 700
                         }}>
-                          {t('tiers.upTo')} {settings?.staking_monthly_rate || '2.5'}%{t('tiers.perMonth')}
+                          {t('tiers.upTo')} {settings?.staking_monthly_rate || '1.7'}%{t('tiers.perMonth')}
                         </span>
                         <span className="text-lg opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                          ({t('tiers.upTo')} {settings?.staking_annual_rate || '30'}% {t('tiers.perYear')})
+                          ({t('tiers.upTo')} {settings?.staking_annual_rate || '20.4'}% {t('tiers.perYear')})
                         </span>
                       </div>
                       <div className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.8 }}>

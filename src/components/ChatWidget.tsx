@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Minimize2, User, Bot, Headphones } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import agentAvatar from 'figma:asset/e1e085ae75a2749b061ca9a2d4be120e5d13174a.png';
+import agentAvatar from '../assets/e1e085ae75a2749b061ca9a2d4be120e5d13174a.webp';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 

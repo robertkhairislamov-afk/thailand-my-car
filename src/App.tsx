@@ -12,7 +12,7 @@ import { CookieBanner } from './components/CookieBanner';
 import AdminApp from './AdminApp';
 import { api } from './services/api';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
-import thailandBackground from 'figma:asset/cf6408d866e0ed42961c4b9ae724562d08a2e003.png';
+import thailandBackground from './assets/thailand-background.webp';
 
 interface TierData {
   id: number;

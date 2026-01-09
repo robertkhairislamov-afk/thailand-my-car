@@ -816,10 +816,10 @@ router.get('/fundraising', async (req, res) => {
     const exchangeRate = parseFloat(await getSetting('exchange_rate_thb_usd', '32.65'));
     const minCarInvestment = parseFloat(await getSetting('min_car_investment_usd', '12400'));
 
-    // Target: all 9 cars fully invested
-    const targetUSD = totalCars * minCarInvestment;
-    const targetBaht = targetUSD * exchangeRate;
-    const deadline = '2026-01-31T23:59:59';
+    // Target: fixed at 2,500,000 THB
+    const targetBaht = 2500000;
+    const targetUSD = targetBaht / exchangeRate;
+    const deadline = '2026-07-31T23:59:59';
 
     const currentUSD = parseFloat(stats.current_usd) || 0;
     const currentBaht = currentUSD * exchangeRate; // Calculate from USD using current rate
@@ -837,13 +837,13 @@ router.get('/fundraising', async (req, res) => {
     res.json({
       target: {
         baht: targetBaht,
-        usd: targetUSD
+        usd: Math.round(targetUSD)
       },
       current: {
         baht: currentBaht,
         usd: currentUSD
       },
-      progress: Math.min(progress, 100),
+      progress: progress,
       investors: {
         current: investorsCount,
         max: totalCars

@@ -3,8 +3,8 @@ import { Car, TrendingUp, Users, MapPin, Shield, BarChart3, ChevronDown, Check }
 import { motion, AnimatePresence } from 'motion/react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { useLanguage } from '../../contexts/LanguageContext';
-import toyotaImage1 from 'figma:asset/5ced44ff814542adbb7d542e23cd5e996dbff908.png';
-import toyotaImage2 from 'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png';
+import toyotaImage1 from '../../assets/toyota-veloz.webp';
+import toyotaImage2 from '../../assets/toyota-yaris.webp';
 
 interface AboutProjectProps {
   isDark: boolean;
@@ -15,7 +15,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
   const [expandedFeature, setExpandedFeature] = useState<number | null>(null);
 
   const stats = [
-    { icon: Car, label: t('about.cars'), value: '9', subtitle: t('about.carsSubtitle') },
+    { icon: Car, label: t('about.cars'), value: '8', subtitle: t('about.carsSubtitle') },
     { icon: TrendingUp, label: t('about.monthlyIncome'), value: '180k+', subtitle: t('about.monthlyIncomeSubtitle') },
     { icon: Users, label: t('about.occupancy'), value: '85%', subtitle: t('about.occupancySubtitle') },
     { icon: MapPin, label: t('about.location'), value: t('about.locationValue'), subtitle: t('about.locationSubtitle') }
@@ -24,7 +24,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
   const timeline = [
     { year: '2022', label: t('about.launch'), value: t('about.cars3'), color: '#28B48C' },
     { year: '2023', label: t('about.growth'), value: t('about.cars6'), color: '#009696' },
-    { year: '2024', label: t('about.now'), value: t('about.cars9'), color: '#FFC850' }
+    { year: '2025', label: t('about.now'), value: t('about.cars8'), color: '#FFC850' }
   ];
 
   const features = [

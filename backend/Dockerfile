@@ -18,4 +18,4 @@ USER nodejs
 
 EXPOSE 3001
 
-CMD ["node", "src/index.js"]
+CMD ["node", "--env-file=.env", "src/index.js"]

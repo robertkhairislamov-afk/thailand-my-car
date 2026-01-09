@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Car, TrendingUp, Shield, Clock, Loader2 } from 'lucide-react';
+import { Car, TrendingUp, Shield, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { api } from '../../services/api';
 import { useLanguage } from '../../contexts/LanguageContext';
-import toyotaHeroImage from 'figma:asset/f4f6aa0cc69c114af6280953f6146b45713388f5.png';
+import toyotaHeroImage from '../../assets/toyota-yaris.webp';
 
 interface HeroProps {
   isDark: boolean;
@@ -38,8 +38,8 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
   }, []);
 
   // Default values while loading
-  const targetBaht = fundraising?.target.baht || 2800000;
-  const targetUSD = fundraising?.target.usd || 85000;
+  const targetBaht = fundraising?.target.baht || 2500000;
+  const targetUSD = fundraising?.target.usd || 76500; // ~2.5M / 32.65
   const currentBaht = fundraising?.current.baht || 0;
   const currentUSD = fundraising?.current.usd || 0;
   const progress = fundraising?.progress || 0;
@@ -48,10 +48,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
   const carsAvailable = fundraising?.cars?.available || 9;
   const totalCars = fundraising?.cars?.total || 9;
 
-  // Countdown to deadline
-  const deadline = new Date(fundraising?.deadline || '2025-01-31T23:59:59');
-  const now = new Date();
-  const daysLeft = Math.max(0, Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  // Countdown removed by user request
 
   return (
     <div className="relative overflow-hidden">
@@ -183,24 +180,13 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
           }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-            <div>
-              <h3 className="text-2xl mb-1" style={{ color: isDark ? '#FFC850' : '#143C50', fontWeight: 600 }}>
-                {t('hero.fundraising')}
-              </h3>
-              <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                {t('hero.investors')}: {investorsCount}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{
-              backgroundColor: isDark ? 'rgba(255, 200, 80, 0.2)' : 'rgba(255, 200, 80, 0.1)',
-              border: `1px solid ${isDark ? 'rgba(255, 200, 80, 0.3)' : 'rgba(255, 200, 80, 0.2)'}`
-            }}>
-              <Clock className="w-4 h-4" style={{ color: '#FFC850' }} />
-              <span className="text-sm" style={{ color: isDark ? '#FFC850' : '#143C50', fontWeight: 600 }}>
-                {daysLeft} {t('hero.daysLeft')}
-              </span>
-            </div>
+          <div className="mb-6">
+            <h3 className="text-2xl mb-1" style={{ color: isDark ? '#FFC850' : '#143C50', fontWeight: 600 }}>
+              {t('hero.fundraising')}
+            </h3>
+            <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
+              {t('hero.investors')}: {investorsCount}
+            </p>
           </div>
 
           {/* Progress Bar */}
