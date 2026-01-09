@@ -203,6 +203,7 @@ export function ThailandHeader({
             {/* Theme Toggle - Hidden on mobile, shown in burger menu */}
             <button
               onClick={onToggleTheme}
+              data-testid="theme-toggle-button"
               className="hidden lg:flex p-2 rounded-xl transition-all duration-500 hover:scale-110"
               style={{
                 backgroundColor: isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'

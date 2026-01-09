@@ -36,7 +36,7 @@ export default function App() {
 
 function AppContent() {
   const { language, setLanguage, t } = useLanguage();
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isAdminRoute, setIsAdminRoute] = useState(false);
