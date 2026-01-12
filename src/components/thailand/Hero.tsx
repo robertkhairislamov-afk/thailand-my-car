@@ -73,7 +73,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
         {/* Background Video (All-Intra MP4 optimized for scroll scrubbing) */}
         <video
           ref={videoRef}
-          src="/Toyota_veloz_driving_final.mp4"
+          src={`${import.meta.env.BASE_URL}Toyota_veloz_driving_final.mp4`}
           className="absolute inset-0 w-full h-full object-cover"
           muted
           playsInline
