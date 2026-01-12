@@ -150,6 +150,23 @@ const translations: Record<Language, Record<string, string>> = {
     // Alert
     'alert.connectWallet': 'Пожалуйста, подключите кошелек для инвестирования',
 
+    // Chat
+    'chat.agentName': 'Консультант TMC',
+    'chat.consultantOnline': 'Онлайн',
+    'chat.typing': 'Печатает...',
+    'chat.end': 'Завершить',
+    'chat.endChat': 'Завершить чат',
+    'chat.endChatConfirm': 'Вы уверены, что хотите завершить чат?',
+    'chat.contactManager': 'Связаться с менеджером',
+    'chat.waitingForManager': 'Ожидание менеджера...',
+    'chat.startChat': 'Начать чат',
+    'chat.introduceYourself': 'Представьтесь, пожалуйста',
+    'chat.yourName': 'Ваше имя',
+    'chat.namePlaceholder': 'Введите имя',
+    'chat.emailOptional': 'Email (необязательно)',
+    'chat.welcomeMessage': 'Здравствуйте, {name}! Чем могу помочь?',
+    'chat.managerRequestSent': 'Запрос менеджеру отправлен. Ожидайте ответа.',
+
     // Modal
     'modal.agreementTitle': 'ИНВЕСТИЦИОННОЕ СОГЛАШЕНИЕ (ОФЕРТА)',
     'modal.agreementIntro': 'Пожалуйста, внимательно ознакомьтесь с условиями участия в проекте Thailand My Car перед внесением средств.',
@@ -307,6 +324,23 @@ const translations: Record<Language, Record<string, string>> = {
     // Alert
     'alert.connectWallet': 'Please connect wallet to invest',
 
+    // Chat
+    'chat.agentName': 'TMC Consultant',
+    'chat.consultantOnline': 'Online',
+    'chat.typing': 'Typing...',
+    'chat.end': 'End',
+    'chat.endChat': 'End chat',
+    'chat.endChatConfirm': 'Are you sure you want to end the chat?',
+    'chat.contactManager': 'Contact manager',
+    'chat.waitingForManager': 'Waiting for manager...',
+    'chat.startChat': 'Start chat',
+    'chat.introduceYourself': 'Please introduce yourself',
+    'chat.yourName': 'Your name',
+    'chat.namePlaceholder': 'Enter name',
+    'chat.emailOptional': 'Email (optional)',
+    'chat.welcomeMessage': 'Hello, {name}! How can I help you?',
+    'chat.managerRequestSent': 'Manager request sent. Please wait for response.',
+
     // Dashboard
     'dashboard.myDashboard': 'Investor Dashboard',
     'dashboard.manageInvestments': 'Manage your assets and track your profit',
@@ -446,6 +480,23 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Alert
     'alert.connectWallet': 'กรุณาเชื่อมต่อกระเป๋าเพื่อลงทุน',
+
+    // Chat
+    'chat.agentName': 'ที่ปรึกษา TMC',
+    'chat.consultantOnline': 'ออนไลน์',
+    'chat.typing': 'กำลังพิมพ์...',
+    'chat.end': 'จบ',
+    'chat.endChat': 'จบแชท',
+    'chat.endChatConfirm': 'คุณแน่ใจหรือไม่ว่าต้องการจบแชท?',
+    'chat.contactManager': 'ติดต่อผู้จัดการ',
+    'chat.waitingForManager': 'รอผู้จัดการ...',
+    'chat.startChat': 'เริ่มแชท',
+    'chat.introduceYourself': 'กรุณาแนะนำตัวเอง',
+    'chat.yourName': 'ชื่อของคุณ',
+    'chat.namePlaceholder': 'ใส่ชื่อ',
+    'chat.emailOptional': 'อีเมล (ไม่บังคับ)',
+    'chat.welcomeMessage': 'สวัสดี {name}! ฉันช่วยอะไรได้บ้าง?',
+    'chat.managerRequestSent': 'ส่งคำขอผู้จัดการแล้ว กรุณารอการตอบกลับ',
 
     // Dashboard
     'dashboard.myDashboard': 'แผงควบคุมนักลงทุน',
