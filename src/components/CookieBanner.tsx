@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 export function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
-  const { t } = useLanguage();
 
   useEffect(() => {
     const consent = localStorage.getItem('cookie-consent');
@@ -36,7 +34,7 @@ export function CookieBanner() {
         <div className="flex items-center gap-3 text-sm" style={{ color: '#FFFAF0' }}>
           <span className="text-xl">🍪</span>
           <p className="opacity-90">
-            {t('cookies.message')}
+            Мы используем cookies для улучшения вашего опыта на сайте.
           </p>
         </div>
 
@@ -49,7 +47,7 @@ export function CookieBanner() {
               opacity: 0.7
             }}
           >
-            {t('cookies.decline')}
+            Отклонить
           </button>
           <button
             onClick={handleAccept}
@@ -59,7 +57,7 @@ export function CookieBanner() {
               color: '#FFFAF0'
             }}
           >
-            {t('cookies.accept')}
+            Принять
           </button>
           <button
             onClick={handleDecline}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, DollarSign, Users, FileText, Settings, LogOut, Menu, X, Sun, Moon, Activity, MessageCircle, Globe, TestTube2, Wallet } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Users, Mail, FileText, Settings, LogOut, Menu, X, Sun, Moon, Activity } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -7,21 +7,16 @@ interface AdminLayoutProps {
   onToggleTheme: () => void;
   currentPage: string;
   onNavigate: (page: string) => void;
-  onLogout?: () => void;
-  admin?: { name?: string; email?: string } | null;
-  network?: 'mainnet' | 'testnet';
-  onNetworkChange?: (network: 'mainnet' | 'testnet') => void;
 }
 
-export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNavigate, onLogout, admin, network = 'mainnet', onNetworkChange }: AdminLayoutProps) {
+export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNavigate }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = [
     { id: 'dashboard', label: 'Дашборд', icon: LayoutDashboard },
     { id: 'investments', label: 'Инвестиции', icon: DollarSign },
-    { id: 'withdrawals', label: 'Заявки на вывод', icon: Wallet },
     { id: 'users', label: 'Пользователи', icon: Users },
-    { id: 'chat', label: 'Чат', icon: MessageCircle },
+    { id: 'messages', label: 'Сообщения', icon: Mail },
     { id: 'reports', label: 'Отчёты', icon: FileText },
     { id: 'logs', label: 'Логи', icon: Activity },
     { id: 'settings', label: 'Настройки', icon: Settings }
@@ -90,7 +85,6 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
           </button>
 
           <button
-            onClick={onLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:scale-105"
             style={{
               background: 'rgba(231, 76, 60, 0.2)',
@@ -183,7 +177,6 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
               </button>
 
               <button
-                onClick={onLogout}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
                 style={{
                   background: 'rgba(231, 76, 60, 0.2)',
@@ -228,38 +221,6 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Network Switcher */}
-              {onNetworkChange && (
-                <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-                  <button
-                    onClick={() => onNetworkChange('mainnet')}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-all"
-                    style={{
-                      background: network === 'mainnet'
-                        ? (isDark ? 'rgba(40, 180, 140, 0.3)' : 'rgba(40, 180, 140, 0.2)')
-                        : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'),
-                      color: network === 'mainnet' ? '#28B48C' : (isDark ? '#FFFAF0' : '#143C50')
-                    }}
-                  >
-                    <Globe className="w-4 h-4" />
-                    <span className="hidden sm:inline">Mainnet</span>
-                  </button>
-                  <button
-                    onClick={() => onNetworkChange('testnet')}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-all"
-                    style={{
-                      background: network === 'testnet'
-                        ? (isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)')
-                        : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'),
-                      color: network === 'testnet' ? '#F59E0B' : (isDark ? '#FFFAF0' : '#143C50')
-                    }}
-                  >
-                    <TestTube2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">Testnet</span>
-                  </button>
-                </div>
-              )}
-
               {/* Theme Toggle - Desktop only */}
               <button
                 onClick={onToggleTheme}
@@ -273,24 +234,14 @@ export function AdminLayout({ children, isDark, onToggleTheme, currentPage, onNa
               </button>
 
               {/* Admin Avatar */}
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{
-                    background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
-                    color: '#FFFAF0'
-                  }}
-                >
-                  <span>{admin?.name?.[0]?.toUpperCase() || 'A'}</span>
-                </div>
-                <div className="hidden md:block">
-                  <div className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 500 }}>
-                    {admin?.name || 'Admin'}
-                  </div>
-                  <div className="text-xs opacity-60" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                    {admin?.email || ''}
-                  </div>
-                </div>
+              <div 
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
+                  color: '#FFFAF0'
+                }}
+              >
+                <span>A</span>
               </div>
             </div>
           </div>

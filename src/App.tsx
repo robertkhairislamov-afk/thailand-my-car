@@ -1,18 +1,28 @@
-import { useState, useEffect } from 'react';
-import { CheckCircle, RefreshCw, Circle, Scale } from 'lucide-react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { CheckCircle, RefreshCw, Circle, Scale, Mail, Send, Youtube, AlertTriangle } from 'lucide-react';
 import { ThailandHeader } from './components/thailand/ThailandHeader';
 import { Hero } from './components/thailand/Hero';
 import { AboutProject } from './components/thailand/AboutProject';
 import { InvestmentTiers } from './components/thailand/InvestmentTiers';
-import { InvestModal } from './components/thailand/InvestModal';
-import { ChatWidget } from './components/ChatWidget';
-import { ProfilePage } from './components/thailand/ProfilePage';
-import { InvestorDashboard } from './components/InvestorDashboard';
 import { CookieBanner } from './components/CookieBanner';
-import AdminApp from './AdminApp';
 import { api } from './services/api';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
-import thailandBackground from './assets/thailand-background.webp';
+import thailandBackground from 'figma:asset/59d824e2939479d4d11bed23e1809802ce6352f5.png';
+
+// Lazy load heavy components (reduces initial bundle by ~300KB)
+const InvestModal = lazy(() => import('./components/thailand/InvestModal').then(m => ({ default: m.InvestModal })));
+const ChatWidget = lazy(() => import('./components/ChatWidget').then(m => ({ default: m.ChatWidget })));
+const ProfilePage = lazy(() => import('./components/thailand/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const InvestorDashboard = lazy(() => import('./components/InvestorDashboard').then(m => ({ default: m.InvestorDashboard })));
+
+// Loading fallback component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin"
+      style={{ borderColor: '#009696', borderTopColor: 'transparent' }}
+    />
+  </div>
+);
 
 interface TierData {
   id: number;
@@ -39,55 +49,64 @@ function AppContent() {
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [isAdminRoute, setIsAdminRoute] = useState(false);
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [selectedTier, setSelectedTier] = useState<TierData | null>(null);
   const [isInvestModalOpen, setIsInvestModalOpen] = useState(false);
 
   // Track page view
   useEffect(() => {
-    // Не трекаем админку
-    if (window.location.pathname.includes("admin")) return;
-    
     const page = window.location.pathname + window.location.search;
     const referrer = document.referrer || undefined;
     
     api.trackPageView(page, referrer).catch(() => {});
   }, []);
 
-  // Check URL for admin route (only on saturway.com, not on saturway.space)
-  useEffect(() => {
-    const path = window.location.pathname;
-    const host = window.location.hostname;
+  // Fallback tiers in case API is unavailable
+  const FALLBACK_TIERS: TierData[] = [
+    {
+      id: 1,
+      name: 'Стейкинг',
+      description: 'Пассивный доход с гибкими условиями вывода',
+      min_investment_baht: '31900',
+      min_investment_usd: '1000',
+      duration_months: 0,
+      return_percentage: '20.4',
+      features: [
+        '1.7% в месяц (20.4% годовых)',
+        'Вывод в любой момент',
+        '5% комиссия при выводе до 6 мес',
+        'Ежемесячное начисление процентов'
+      ]
+    },
+    {
+      id: 2,
+      name: 'Доля в автомобиле',
+      description: 'Получите автомобиль в собственность или гарантированный возврат',
+      min_investment_baht: '395560',
+      min_investment_usd: '12400',
+      duration_months: 6,
+      return_percentage: null,
+      features: [
+        'Через 6 мес: +20% возврат ИЛИ ждать авто',
+        'Автомобиль в собственность после выплаты кредита',
+        'Приоритет: кто первый - тот получает авто',
+        'Можно изменить выбор до закрытия кредита'
+      ]
+    }
+  ];
 
-    // Admin only available on saturway.com
-    const isAdminHost = host === 'saturway.com' || host === 'www.saturway.com' || host === 'localhost';
-
-    setIsAdminRoute(
-      isAdminHost && (
-        path === '/thailand-my-car/admin' ||
-        path.startsWith('/thailand-my-car/admin/') ||
-        path === '/thailand-my-car_admin/admin' ||
-        path.startsWith('/thailand-my-car_admin/admin/')
-      )
-    );
-  }, []);
-
-  // Load tiers
+  // Load tiers from API with fallback
   useEffect(() => {
     const loadTiers = async () => {
       const response = await api.getInvestmentTiers();
-      if (response.data) {
+      if (response.data && response.data.length > 0) {
         setTiers(response.data);
+      } else {
+        setTiers(FALLBACK_TIERS);
       }
     };
     loadTiers();
   }, []);
-
-  // Render admin app if on admin route
-  if (isAdminRoute) {
-    return <AdminApp />;
-  }
 
   const handleInvest = (tierId: number) => {
     if (!walletAddress) {
@@ -142,31 +161,32 @@ function AppContent() {
   };
 
   return (
-    <div className={`min-h-screen relative overflow-hidden transition-colors duration-500`}
+    <div className="min-h-screen relative overflow-hidden transition-colors duration-500"
       style={{
         background: isDark 
           ? 'linear-gradient(135deg, #143C50 0%, #0a2030 100%)'
           : 'linear-gradient(135deg, #FFFAF0 0%, #f5e6d3 100%)'
       }}
     >
-      {/* Thailand Background Image */}
-      <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-500"
-        style={{ 
-          backgroundImage: `url(${thailandBackground})`,
-          opacity: isDark ? 0.4 : 0.5
-        }}
-      />
-      
-      {/* Overlay gradient for better contrast and color tint */}
-      <div 
-        className="fixed inset-0 transition-opacity duration-500"
-        style={{
-          background: isDark 
-            ? 'linear-gradient(135deg, rgba(20, 60, 80, 0.5) 0%, rgba(10, 32, 48, 0.6) 100%)'
-            : 'linear-gradient(135deg, rgba(255, 250, 240, 0.5) 0%, rgba(245, 230, 211, 0.6) 100%)'
-        }}
-      />
+      {/* Background Image */}
+      <div className="fixed inset-0 z-0">
+        <img 
+          src={thailandBackground}
+          alt="Thailand road background"
+          className="w-full h-full object-cover"
+          style={{ 
+            opacity: isDark ? 0.2 : 0.25
+          }}
+        />
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(0, 150, 150, 0.15) 0%, rgba(40, 180, 140, 0.1) 50%, rgba(255, 200, 80, 0.08) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 250, 240, 0.1) 0%, rgba(0, 150, 150, 0.05) 50%, rgba(245, 230, 211, 0.1) 100%)'
+          }}
+        />
+      </div>
 
       {/* Decorative background patterns */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
@@ -221,33 +241,54 @@ function AppContent() {
 
           {/* Dashboard Section */}
           {activeTab === 'dashboard' && (
-            <InvestorDashboard
-              walletAddress={walletAddress}
-            />
+            <Suspense fallback={<LoadingSpinner />}>
+              <InvestorDashboard
+                walletAddress={walletAddress}
+              />
+            </Suspense>
           )}
 
           {/* Profile Section */}
           {activeTab === 'profile' && (
-            <ProfilePage
-              walletAddress={walletAddress}
-              onBack={() => setActiveTab('home')}
-              isDark={isDark}
-            />
+            <Suspense fallback={<LoadingSpinner />}>
+              <ProfilePage
+                walletAddress={walletAddress}
+                onBack={() => setActiveTab('home')}
+                isDark={isDark}
+              />
+            </Suspense>
           )}
 
-          {/* Roadmap Section - Coming Soon */}
+          {/* Roadmap Section */}
           {activeTab === 'roadmap' && (
             <div className="max-w-7xl mx-auto px-6 py-16">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl lg:text-5xl mb-4" style={{
-                  color: isDark ? '#FFC850' : '#143C50',
-                  fontWeight: 700
-                }}>
+                <h2 
+                  className="text-3xl md:text-4xl lg:text-5xl mb-6" 
+                  style={{ 
+                    background: 'linear-gradient(135deg, #FFC850 0%, #40E0D0 50%, #FFC850 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    textShadow: '0 0 40px rgba(64, 224, 208, 0.3)',
+                    filter: 'drop-shadow(0 0 20px rgba(255, 200, 80, 0.4))'
+                  }}
+                >
                   {t('roadmap.title')}
                 </h2>
+                <div 
+                  className="w-32 h-1 mx-auto mb-6 rounded-full"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent, #40E0D0, #FFC850, #40E0D0, transparent)',
+                    boxShadow: '0 0 20px rgba(64, 224, 208, 0.5)'
+                  }}
+                />
                 <p className="text-lg md:text-xl max-w-3xl mx-auto" style={{
                   color: isDark ? '#FFFAF0' : '#143C50',
-                  opacity: 0.8
+                  opacity: 0.8,
+                  lineHeight: 1.6
                 }}>
                   {t('roadmap.subtitle')}
                 </p>
@@ -264,7 +305,7 @@ function AppContent() {
                   { quarter: t('roadmap.oct_2026'), title: t('roadmap.newProducts'), status: 'upcoming', items: t('roadmap.newProductsItems').split('|') },
                   { quarter: t('roadmap.2027'), title: t('roadmap.continued'), status: 'upcoming', items: t('roadmap.continuedItems').split('|') },
                 ].map((milestone, index) => (
-                  <div key={index} className="rounded-2xl p-6 backdrop-blur-xl border"
+                  <div key={index} className="rounded-2xl p-4 md:p-6 backdrop-blur-xl border"
                     style={{
                       background: isDark 
                         ? 'linear-gradient(135deg, rgba(26, 78, 100, 0.6) 0%, rgba(20, 60, 80, 0.4) 100%)'
@@ -341,52 +382,51 @@ function AppContent() {
           }}
         >
           <div className="max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-              <div>
-                <h4 className="text-lg mb-3" style={{
-                  color: isDark ? '#FFC850' : '#143C50',
-                  fontWeight: 600
-                }}>
-                  Thailand My Car
-                </h4>
-                <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  {t('footer.description')}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-lg mb-3" style={{
-                  color: isDark ? '#FFC850' : '#143C50',
-                  fontWeight: 600
-                }}>
-                  {t('footer.contacts')}
-                </h4>
-                <div className="space-y-2 text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  <a
-                    href="mailto:cloudjasmin8@gmail.com"
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105"
-                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
-                  >
-                    📧 cloudjasmin8@gmail.com
-                  </a>
-                  <a
-                    href="https://t.me/+YAG8PnZr-dhiZDM6"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105"
-                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
-                  >
-                    💬 Telegram: @thailandmycar
-                  </a>
-                  <a
-                    href="https://youtube.com/@saturway-123"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105"
-                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
-                  >
-                    📺 YouTube: @saturway-123
-                  </a>
-                </div>
+            <div className="text-center mb-8">
+              <h4 className="text-lg mb-4" style={{
+                color: isDark ? '#FFC850' : '#143C50',
+                fontWeight: 600
+              }}>
+                Контакты
+              </h4>
+              <div className="flex items-center justify-center gap-4">
+                <a
+                  href="mailto:cloudjasmin8@gmail.com"
+                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+                  style={{ 
+                    backgroundColor: isDark ? 'rgba(30, 60, 80, 0.9)' : 'rgba(20, 40, 60, 0.8)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                  }}
+                  title="Email"
+                >
+                  <Mail className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" style={{ color: '#FFFAF0' }} />
+                </a>
+                <a
+                  href="https://t.me/+YAG8PnZr-dhiZDM6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+                  style={{ 
+                    backgroundColor: isDark ? 'rgba(30, 60, 80, 0.9)' : 'rgba(20, 40, 60, 0.8)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                  }}
+                  title="Telegram"
+                >
+                  <Send className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" style={{ color: '#FFFAF0' }} />
+                </a>
+                <a
+                  href="https://youtube.com/@saturway-123"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+                  style={{ 
+                    backgroundColor: isDark ? 'rgba(30, 60, 80, 0.9)' : 'rgba(20, 40, 60, 0.8)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                  }}
+                  title="YouTube"
+                >
+                  <Youtube className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" style={{ color: '#FFFAF0' }} />
+                </a>
               </div>
             </div>
             <div className="pt-8 border-t text-center text-sm opacity-70"
@@ -396,26 +436,31 @@ function AppContent() {
               }}
             >
               <p className="mb-2">© 2025 Thailand My Car. {t('footer.rights')}.</p>
-              <p className="text-xs">
-                ⚠️ {t('footer.disclaimer')}
+              <p className="text-xs flex items-start justify-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#FFC850' }} />
+                <span>{t('footer.disclaimer')}</span>
               </p>
             </div>
           </div>
         </footer>
 
         {/* Support Button */}
-        <ChatWidget isDark={isDark} />
+        <Suspense fallback={null}>
+          <ChatWidget isDark={isDark} />
+        </Suspense>
       </div>
 
       {/* Invest Modal */}
-      <InvestModal
-        isOpen={isInvestModalOpen}
-        onClose={() => setIsInvestModalOpen(false)}
-        tier={selectedTier}
-        walletAddress={walletAddress || ''}
-        isDark={isDark}
-        onSuccess={handleInvestSuccess}
-      />
+      <Suspense fallback={null}>
+        <InvestModal
+          isOpen={isInvestModalOpen}
+          onClose={() => setIsInvestModalOpen(false)}
+          tier={selectedTier}
+          walletAddress={walletAddress || ''}
+          isDark={isDark}
+          onSuccess={handleInvestSuccess}
+        />
+      </Suspense>
 
       {/* Cookie Consent Banner */}
       <CookieBanner />

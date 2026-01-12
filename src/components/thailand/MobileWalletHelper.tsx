@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Smartphone, Copy, Check, Mail } from 'lucide-react';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 interface MobileWalletHelperProps {
   isOpen: boolean;
@@ -40,7 +39,6 @@ const WALLET_LINKS = [
 ];
 
 export function MobileWalletHelper({ isOpen, onClose, isDark, onContinueWithWalletConnect, onLoginWithEmail }: MobileWalletHelperProps) {
-  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
   const currentUrl = window.location.href;
 
@@ -59,11 +57,6 @@ export function MobileWalletHelper({ isOpen, onClose, isDark, onContinueWithWall
   const openInWallet = (wallet: typeof WALLET_LINKS[0]) => {
     const deepLink = wallet.deepLink(currentUrl);
     window.location.href = deepLink;
-
-    // Fallback: if deep link doesn't work after 2 seconds, show message
-    setTimeout(() => {
-      // User is still on the page, deep link probably didn't work
-    }, 2000);
   };
 
   const modalContent = (
@@ -115,10 +108,10 @@ export function MobileWalletHelper({ isOpen, onClose, isDark, onContinueWithWall
           </div>
           <div>
             <h3 className="text-xl font-bold" style={{ color: isDark ? '#FFC850' : '#143C50' }}>
-              {t('mobileHelper.title')}
+              Подключение на мобильном
             </h3>
             <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              {t('mobileHelper.subtitle')}
+              Выберите способ подключения
             </p>
           </div>
         </div>
@@ -126,7 +119,7 @@ export function MobileWalletHelper({ isOpen, onClose, isDark, onContinueWithWall
         {/* Best option - Open in wallet browser */}
         <div className="mb-4">
           <p className="text-sm font-medium mb-3" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-            {t('mobileHelper.recommend')}
+            Рекомендуем открыть в кошельке:
           </p>
           <div className="grid grid-cols-2 gap-2">
             {WALLET_LINKS.map((wallet) => (
@@ -151,14 +144,14 @@ export function MobileWalletHelper({ isOpen, onClose, isDark, onContinueWithWall
         {/* Divider */}
         <div className="flex items-center gap-3 my-4">
           <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
-          <span className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('mobileHelper.or')}</span>
+          <span className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>или</span>
           <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
         </div>
 
         {/* Copy URL option */}
         <div className="mb-4">
           <p className="text-sm opacity-70 mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-            {t('mobileHelper.copyLink')}
+            Скопируйте ссылку и откройте в кошельке:
           </p>
           <button
             onClick={copyUrl}
@@ -182,38 +175,7 @@ export function MobileWalletHelper({ isOpen, onClose, isDark, onContinueWithWall
         {/* Divider */}
         <div className="flex items-center gap-3 my-4">
           <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
-          <span className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('mobileHelper.or')}</span>
-          <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
-        </div>
-
-        {/* Email/Google login - for investors without crypto wallet */}
-        {onLoginWithEmail && (
-          <div className="mb-4">
-            <p className="text-sm opacity-70 mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              {t('mobileHelper.noWallet')}
-            </p>
-            <button
-              onClick={() => {
-                onClose();
-                onLoginWithEmail();
-              }}
-              className="w-full p-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
-              style={{
-                background: 'linear-gradient(135deg, #FFC850 0%, #FF9800 100%)',
-                color: '#143C50',
-                fontWeight: 600
-              }}
-            >
-              <Mail className="w-5 h-5" />
-              {t('mobileHelper.loginEmail')}
-            </button>
-          </div>
-        )}
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
-          <span className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('mobileHelper.or')}</span>
+          <span className="text-xs opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>или</span>
           <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
         </div>
 
@@ -231,11 +193,11 @@ export function MobileWalletHelper({ isOpen, onClose, isDark, onContinueWithWall
             border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
           }}
         >
-          {t('mobileHelper.tryWalletConnect')}
+          Попробовать WalletConnect
         </button>
 
         <p className="text-xs text-center mt-3 opacity-50" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-          {t('mobileHelper.walletConnectNote')}
+          WalletConnect может не работать в некоторых кошельках
         </p>
       </div>
 

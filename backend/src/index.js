@@ -20,8 +20,14 @@ app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
+
+const allowedOrigins = ['https://saturway.space', 'https://www.saturway.space', 'https://saturway.com', 'https://www.saturway.com'];
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:3000', 'http://localhost:8080');
+}
+
 app.use(cors({
-  origin: ['https://saturway.space', 'https://www.saturway.space', 'https://saturway.com', 'https://www.saturway.com'],
+  origin: allowedOrigins,
   credentials: true
 }));
 

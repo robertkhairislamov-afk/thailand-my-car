@@ -1,56 +1,80 @@
-import { useState } from 'react';
-import { Car, TrendingUp, Users, MapPin, Shield, BarChart3, ChevronDown, Check } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { motion } from 'motion/react';
+import { Car, TrendingUp, MapPin, Shield, FileText, Star } from 'lucide-react';
 import toyotaImage1 from '../../assets/toyota-veloz.webp';
 import toyotaImage2 from '../../assets/toyota-yaris.webp';
+import tmcLogo from '../../assets/TMC.webp';
 
 interface AboutProjectProps {
   isDark: boolean;
 }
 
 export function AboutProject({ isDark }: AboutProjectProps) {
-  const { t } = useLanguage();
-  const [expandedFeature, setExpandedFeature] = useState<number | null>(null);
-
   const stats = [
-    { icon: Car, label: t('about.cars'), value: '8', subtitle: t('about.carsSubtitle') },
-    { icon: TrendingUp, label: t('about.monthlyIncome'), value: '180k+', subtitle: t('about.monthlyIncomeSubtitle') },
-    { icon: Users, label: t('about.occupancy'), value: '85%', subtitle: t('about.occupancySubtitle') },
-    { icon: MapPin, label: t('about.location'), value: t('about.locationValue'), subtitle: t('about.locationSubtitle') }
+    {
+      icon: Car,
+      value: '8',
+      label: 'Новых автомобилей Toyota'
+    },
+    {
+      icon: TrendingUp,
+      value: '180,000 ฿',
+      label: 'стабильный поток за месяц'
+    },
+    {
+      icon: TrendingUp,
+      value: '85%',
+      label: 'Загрузка автопарка 2025'
+    },
+    {
+      icon: MapPin,
+      value: 'Паттайя',
+      label: 'Туристический центр'
+    }
   ];
 
   const timeline = [
-    { year: '2022', label: t('about.launch'), value: t('about.cars3'), color: '#28B48C' },
-    { year: '2023', label: t('about.growth'), value: t('about.cars6'), color: '#009696' },
-    { year: '2025', label: t('about.now'), value: t('about.cars8'), color: '#FFC850' }
+    {
+      cars: '3 АВТО',
+      label: 'Старт',
+      active: false
+    },
+    {
+      cars: '5 АВТО',
+      label: 'Рост',
+      active: false
+    },
+    {
+      cars: '8 АВТО',
+      label: 'Сейчас',
+      active: true
+    }
   ];
 
-  const features = [
+  const benefits = [
     {
       icon: Shield,
-      title: t('about.insurance'),
-      description: t('about.insuranceDesc'),
-      expandable: true,
-      expandedDetails: [
-        t('about.insuranceCoverage1'),
-        t('about.insuranceCoverage2'),
-        t('about.insuranceCoverage3'),
-        t('about.insuranceCoverage4'),
-        t('about.insuranceCoverage5'),
-        t('about.insuranceCoverage6')
+      title: 'Страхование',
+      description: 'Полная страховка Type 1 (ชั้น 1) на авто и пассажиров',
+      points: [
+        'Полное покрытие ущерба автомобиля',
+        'Угон и злоумышленные действия',
+        'Стихийные бедствия (наводнение, пожар)',
+        'Медицинские расходы водителя и пассажиров',
+        'Ответственность перед третьими лицами',
+        'Эвакуация и помощь на дороге 24/7'
       ]
     },
     {
-      icon: BarChart3,
-      title: t('about.transparency'),
-      description: t('about.transparencyDesc')
+      icon: FileText,
+      title: 'Прозрачность',
+      description: 'Ежемесячные отчеты и доступ к метрикам в реальном времени',
+      points: []
     },
     {
-      icon: Users,
-      title: t('about.experience'),
-      description: t('about.experienceDesc')
+      icon: Star,
+      title: 'Опыт',
+      description: '2+ года успешной работы на рынке рентала в Таиланде',
+      points: []
     }
   ];
 
@@ -62,283 +86,463 @@ export function AboutProject({ isDark }: AboutProjectProps) {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className="text-center mb-16"
+        className="text-center mb-12"
       >
-        <h2 className="text-3xl md:text-4xl lg:text-5xl mb-4" style={{
-          color: isDark ? '#FFC850' : '#143C50',
-          fontWeight: 700
-        }}>
-          {t('about.title')}
+        <h2 
+          className="text-3xl md:text-4xl lg:text-5xl mb-6" 
+          style={{ 
+            background: 'linear-gradient(135deg, #FFC850 0%, #40E0D0 50%, #FFC850 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontWeight: 700,
+            letterSpacing: '0.02em',
+            textShadow: '0 0 40px rgba(64, 224, 208, 0.3)',
+            filter: 'drop-shadow(0 0 20px rgba(255, 200, 80, 0.4))'
+          }}
+        >
+          О проекте
         </h2>
-        <p className="text-lg md:text-xl max-w-3xl mx-auto" style={{
+        <div 
+          className="w-32 h-1 mx-auto mb-6 rounded-full"
+          style={{
+            background: 'linear-gradient(90deg, transparent, #40E0D0, #FFC850, #40E0D0, transparent)',
+            boxShadow: '0 0 20px rgba(64, 224, 208, 0.5)'
+          }}
+        />
+        <p className="text-lg md:text-xl max-w-3xl mx-auto" style={{ 
           color: isDark ? '#FFFAF0' : '#143C50',
-          opacity: 0.8
+          opacity: 0.8,
+          lineHeight: 1.6
         }}>
-          {t('about.subtitle')}
+          Действующий бизнес по прокату автомобилей в Паттайе с проверенными показателями доходности
         </p>
       </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="rounded-2xl p-6 backdrop-blur-xl border hover:scale-105 transition-all duration-300"
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        {stats.map((stat, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: index * 0.1 }}
+            whileHover={{ 
+              scale: 1.05,
+              rotateY: 5,
+              rotateX: 5,
+              transition: { duration: 0.3 }
+            }}
+            className="rounded-2xl p-6 backdrop-blur-xl border text-center transition-all duration-300 relative overflow-hidden"
+            style={{
+              background: isDark 
+                ? 'rgba(26, 78, 100, 0.6)' 
+                : 'rgba(255, 255, 255, 0.8)',
+              borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)',
+              boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              transformStyle: 'preserve-3d',
+              perspective: '1000px'
+            }}
+          >
+            {/* Gradient border */}
+            <div 
+              className="absolute inset-0 rounded-2xl opacity-50"
               style={{
-                background: isDark 
-                  ? 'linear-gradient(135deg, rgba(26, 78, 100, 0.6) 0%, rgba(20, 60, 80, 0.4) 100%)'
-                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 250, 240, 0.7) 100%)',
-                borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
+                background: 'linear-gradient(180deg, rgba(64, 224, 208, 0.3) 0%, transparent 50%, rgba(255, 200, 80, 0.3) 100%)',
+                pointerEvents: 'none'
+              }}
+            />
+            
+            <motion.div 
+              className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 relative z-10"
+              animate={{ 
+                y: [0, -8, 0],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.2
+              }}
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(0, 150, 150, 0.3), rgba(64, 224, 208, 0.3))',
+                boxShadow: '0 0 20px rgba(64, 224, 208, 0.4)'
               }}
             >
-              <div className="p-3 rounded-xl inline-block mb-4" style={{
-                backgroundColor: isDark ? 'rgba(0, 150, 150, 0.2)' : 'rgba(0, 150, 150, 0.1)'
-              }}>
-                <Icon className="w-6 h-6" style={{ color: '#009696' }} />
-              </div>
-              <div className="text-sm mb-2 opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                {stat.label}
-              </div>
-              <div className="text-3xl mb-1" style={{ 
-                color: isDark ? '#FFFAF0' : '#143C50',
-                fontWeight: 700
-              }}>
-                {stat.value}
-              </div>
-              <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                {stat.subtitle}
-              </div>
+              {index === 0 ? (
+                <img src={tmcLogo} alt="TMC" className="w-8 h-auto object-contain" />
+              ) : (
+                <stat.icon className="w-6 h-6" style={{ color: '#00CED1' }} />
+              )}
             </motion.div>
-          );
-        })}
+            <div 
+              className="text-2xl md:text-3xl mb-2 relative z-10" 
+              style={{ 
+                background: 'linear-gradient(135deg, #FFC850, #40E0D0)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontWeight: 700,
+                textShadow: '0 0 30px rgba(64, 224, 208, 0.5)',
+                filter: 'drop-shadow(0 0 10px rgba(255, 200, 80, 0.3))'
+              }}
+            >
+              {stat.value}
+            </div>
+            <div className="text-sm relative z-10" style={{ 
+              color: isDark ? '#FFFAF0' : '#143C50',
+              opacity: 0.7
+            }}>
+              {stat.label}
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Growth Timeline */}
+      {/* Timeline - История роста компании */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className="rounded-3xl p-8 md:p-12 backdrop-blur-xl border mb-16"
-        style={{
-          background: isDark 
-            ? 'linear-gradient(135deg, rgba(26, 78, 100, 0.8) 0%, rgba(20, 60, 80, 0.6) 100%)'
-            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 250, 240, 0.8) 100%)',
-          borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
-        }}
+        className="mb-16"
       >
-        <h3 className="text-2xl md:text-3xl mb-8 text-center" style={{
-          color: isDark ? '#FFC850' : '#143C50',
-          fontWeight: 700
-        }}>
-          {t('about.growthTitle')}
+        <h3 
+          className="text-2xl md:text-3xl text-center mb-12" 
+          style={{ 
+            background: 'linear-gradient(135deg, #FFC850, #40E0D0)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            filter: 'drop-shadow(0 0 15px rgba(64, 224, 208, 0.3))'
+          }}
+        >
+          История роста компании
         </h3>
-        
-        <div className="relative">
-          {/* Timeline line */}
-          <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 hidden md:block"
-            style={{
-              background: 'linear-gradient(90deg, #28B48C 0%, #009696 50%, #FFC850 100%)',
-              opacity: 0.3
-            }}
-          />
-          
-          {/* Timeline items */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            {timeline.map((item, index) => (
+
+        <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-0 flex-wrap">
+          {timeline.map((item, index) => (
+            <div key={index} className="flex items-center">
               <motion.div
-                key={index}
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                className="text-center"
+                transition={{ duration: 0.6, delay: index * 0.15 }}
+                whileHover={{ 
+                  scale: 1.08,
+                  rotateY: 8,
+                  rotateX: 8,
+                  transition: { duration: 0.3 }
+                }}
+                className="rounded-2xl p-4 sm:p-6 md:p-8 backdrop-blur-xl border text-center w-[140px] sm:w-[160px] md:w-[200px] h-[140px] sm:h-[160px] md:h-[200px] flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden"
+                style={{
+                  background: item.active
+                    ? 'linear-gradient(135deg, rgba(255, 200, 80, 0.2) 0%, rgba(0, 150, 150, 0.2) 100%)'
+                    : isDark 
+                      ? 'rgba(26, 78, 100, 0.4)' 
+                      : 'rgba(255, 255, 255, 0.6)',
+                  borderColor: item.active ? '#FFC850' : isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)',
+                  borderWidth: item.active ? '2px' : '1px',
+                  boxShadow: item.active 
+                    ? '0 0 40px rgba(255, 200, 80, 0.5), 0 0 80px rgba(64, 224, 208, 0.3), 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                    : '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                  transformStyle: 'preserve-3d',
+                  perspective: '1000px'
+                }}
               >
-                <div className="inline-block p-6 rounded-2xl mb-4 relative z-10" style={{
-                  backgroundColor: isDark ? 'rgba(20, 60, 80, 0.9)' : 'rgba(255, 250, 240, 0.9)',
-                  border: `2px solid ${item.color}`,
-                  boxShadow: `0 0 20px ${item.color}40`
+                {/* Radial gradient spotlight */}
+                {item.active && (
+                  <div
+                    className="absolute inset-0 rounded-2xl"
+                    style={{
+                      background: 'radial-gradient(circle at 50% 50%, rgba(255, 200, 80, 0.3), transparent 70%)',
+                      pointerEvents: 'none',
+                      opacity: 0.5
+                    }}
+                  />
+                )}
+                
+                {/* Growth Circle with TrendingUp Icon */}
+                <div className="flex items-center justify-center mb-2 sm:mb-4 relative z-10">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    whileInView={{ scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: index * 0.15 + 0.2 }}
+                    className="rounded-full flex items-center justify-center"
+                    style={{
+                      width: `${40 + index * 12}px`,
+                      height: `${40 + index * 12}px`,
+                      background: item.active 
+                        ? 'linear-gradient(135deg, #FFC850, #FFD700)'
+                        : 'linear-gradient(135deg, #40E0D0, #00CED1)',
+                      border: `2px solid ${item.active ? '#FFC850' : '#40E0D0'}`,
+                      boxShadow: item.active
+                        ? '0 0 30px rgba(255, 200, 80, 0.6)'
+                        : '0 0 25px rgba(64, 224, 208, 0.6)'
+                    }}
+                  >
+                    <TrendingUp 
+                      className="text-white" 
+                      style={{ 
+                        width: `${20 + index * 5}px`,
+                        height: `${20 + index * 5}px`,
+                        filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
+                      }} 
+                    />
+                  </motion.div>
+                </div>
+
+                <div className="text-xl sm:text-2xl mb-1 sm:mb-2 relative z-10" style={{ 
+                  color: item.active ? '#FFC850' : isDark ? '#FFFAF0' : '#143C50',
+                  fontWeight: 700,
+                  textShadow: item.active ? '0 0 20px rgba(255, 200, 80, 0.5)' : 'none'
                 }}>
-                  <div className="text-sm mb-2 opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                    {item.year}
-                  </div>
-                  <div className="text-3xl mb-1" style={{ 
-                    color: item.color,
-                    fontWeight: 700
-                  }}>
-                    {item.value}
-                  </div>
-                  <div className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                    {item.label}
-                  </div>
+                  {item.cars}
+                </div>
+                <div className="text-xs sm:text-sm mb-1 sm:mb-2 relative z-10" style={{ 
+                  color: item.active ? '#FFC850' : isDark ? '#FFFAF0' : '#143C50',
+                  opacity: 0.8
+                }}>
+                  {item.label}
+                </div>
+                <div className="text-sm sm:text-base relative z-10" style={{ 
+                  color: item.active ? '#FFC850' : isDark ? '#40E0D0' : '#009696',
+                  opacity: 1,
+                  fontWeight: 700,
+                  textShadow: '0 0 15px rgba(64, 224, 208, 0.4)'
+                }}>
+                  {index === 0 ? '2022' : index === 1 ? '2023' : '2025'}
                 </div>
               </motion.div>
-            ))}
-          </div>
+              
+              {index < timeline.length - 1 && (
+                <div className="hidden md:block w-20 h-1 relative" style={{ overflow: 'visible' }}>
+                  <motion.div 
+                    initial={{ scaleX: 0 }}
+                    whileInView={{ scaleX: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: index * 0.15 + 0.4 }}
+                    className="absolute inset-0"
+                    style={{ 
+                      originX: 0,
+                      background: 'linear-gradient(90deg, #40E0D0, #00CED1)',
+                      boxShadow: '0 0 15px rgba(64, 224, 208, 0.6)'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </motion.div>
 
-      {/* Features Grid */}
+      {/* Benefits Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-        {features.map((feature, index) => {
-          const Icon = feature.icon;
-          const isExpanded = expandedFeature === index;
-          const isExpandable = 'expandable' in feature && feature.expandable;
-
-          return (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className={`rounded-2xl p-6 backdrop-blur-xl border ${isExpandable ? 'cursor-pointer' : ''}`}
+        {benefits.map((benefit, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: index * 0.1 }}
+            whileHover={{ 
+              scale: 1.05,
+              rotateY: 5,
+              rotateX: 5,
+              transition: { duration: 0.3 }
+            }}
+            className="rounded-2xl p-6 backdrop-blur-xl border transition-all duration-300 relative overflow-hidden"
+            style={{
+              background: isDark 
+                ? 'rgba(26, 78, 100, 0.6)' 
+                : 'rgba(255, 255, 255, 0.8)',
+              borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)',
+              boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              transformStyle: 'preserve-3d',
+              perspective: '1000px'
+            }}
+          >
+            {/* Subtle pattern overlay */}
+            <div 
+              className="absolute inset-0 opacity-5"
               style={{
-                background: isDark
-                  ? 'linear-gradient(135deg, rgba(26, 78, 100, 0.6) 0%, rgba(20, 60, 80, 0.4) 100%)'
-                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 250, 240, 0.7) 100%)',
-                borderColor: isExpanded
-                  ? '#009696'
-                  : (isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)')
+                backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(64, 224, 208, 0.5) 1px, transparent 0)',
+                backgroundSize: '20px 20px',
+                pointerEvents: 'none'
               }}
-              onClick={() => isExpandable && setExpandedFeature(isExpanded ? null : index)}
+            />
+            
+            <motion.div 
+              className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 relative z-10"
+              animate={{ 
+                rotate: [0, 5, -5, 0],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.3
+              }}
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(0, 150, 150, 0.3), rgba(64, 224, 208, 0.3))',
+                boxShadow: '0 0 20px rgba(64, 224, 208, 0.4)'
+              }}
             >
-              <div className="flex items-start justify-between">
-                <div className="p-3 rounded-xl inline-block mb-4" style={{
-                  background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)'
-                }}>
-                  <Icon className="w-6 h-6" style={{ color: '#FFFAF0' }} />
-                </div>
-                {isExpandable && (
-                  <motion.div
-                    animate={{ rotate: isExpanded ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <ChevronDown className="w-5 h-5" style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.6 }} />
-                  </motion.div>
-                )}
-              </div>
-              <h4 className="text-xl mb-2" style={{
-                color: isDark ? '#FFC850' : '#143C50',
-                fontWeight: 600
-              }}>
-                {feature.title}
-              </h4>
-              <p className="opacity-80" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                {feature.description}
-              </p>
-
-              {/* Expanded Details */}
-              <AnimatePresence>
-                {isExpanded && 'expandedDetails' in feature && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-4 pt-4 space-y-2" style={{
-                      borderTop: `1px solid ${isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'}`
-                    }}>
-                      {(feature as { expandedDetails: string[] }).expandedDetails.map((detail, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <Check className="w-4 h-4 flex-shrink-0" style={{ color: '#28B48C' }} />
-                          <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50', opacity: 0.9 }}>
-                            {detail}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <benefit.icon className="w-6 h-6" style={{ color: '#00CED1' }} />
             </motion.div>
-          );
-        })}
+            <h4 className="text-xl mb-3 relative z-10" style={{ 
+              color: isDark ? '#FFC850' : '#143C50',
+              fontWeight: 600,
+              textShadow: '0 0 10px rgba(64, 224, 208, 0.2)'
+            }}>
+              {benefit.title}
+            </h4>
+            <p className="text-sm mb-4 relative z-10" style={{ 
+              color: isDark ? '#FFFAF0' : '#143C50',
+              opacity: 0.8,
+              lineHeight: 1.6
+            }}>
+              {benefit.description}
+            </p>
+            {benefit.points.length > 0 && (
+              <ul className="space-y-2 relative z-10">
+                {benefit.points.map((point, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm" style={{ 
+                    color: isDark ? '#FFFAF0' : '#143C50',
+                    opacity: 0.7
+                  }}>
+                    <span style={{ color: '#28B48C', marginTop: '2px' }}>•</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </motion.div>
+        ))}
       </div>
 
-      {/* Car Fleet Gallery */}
+      {/* Toyota Fleet Section */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className="mb-8"
       >
-        <h3 className="text-2xl md:text-3xl mb-6 text-center" style={{
-          color: isDark ? '#FFC850' : '#143C50',
-          fontWeight: 700
-        }}>
-          {t('about.fleetTitle')}
+        <h3 
+          className="text-2xl md:text-3xl text-center mb-8" 
+          style={{ 
+            background: 'linear-gradient(135deg, #FFC850, #40E0D0)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            filter: 'drop-shadow(0 0 15px rgba(64, 224, 208, 0.3))'
+          }}
+        >
+          Наш автопарк Toyota
         </h3>
-        <p className="text-center mb-8 max-w-2xl mx-auto" style={{
-          color: isDark ? '#FFFAF0' : '#143C50',
-          opacity: 0.8
-        }}>
-          {t('about.fleetDesc')}
-        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            whileHover={{ 
+              scale: 1.03,
+              transition: { duration: 0.3 }
+            }}
+            className="rounded-2xl overflow-hidden border transition-all duration-300 shadow-lg relative group"
+            style={{
+              borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)',
+              boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3)'
+            }}
+          >
+            <div className="relative overflow-hidden">
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                transition={{ duration: 0.6 }}
+                className="w-full h-full"
+              >
+                <video 
+                  src="/VELOZ_cropped.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-[300px] object-cover"
+                />
+              </motion.div>
+              {/* Dark gradient overlay */}
+              <div 
+                className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent)'
+                }}
+              />
+              {/* Text overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                <div className="text-white">
+                  <div className="text-2xl mb-1" style={{ fontWeight: 700 }}>Toyota Veloz</div>
+                  <div className="text-sm opacity-90">Премиальный 7-местный кроссовер</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            whileHover={{ 
+              scale: 1.03,
+              transition: { duration: 0.3 }
+            }}
+            className="rounded-2xl overflow-hidden border transition-all duration-300 shadow-lg relative group"
+            style={{
+              borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)',
+              boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3)'
+            }}
+          >
+            <div className="relative overflow-hidden">
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                transition={{ duration: 0.6 }}
+                className="w-full h-full"
+              >
+                <video 
+                  src="/ATIV_cropped.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-[300px] object-cover"
+                />
+              </motion.div>
+              {/* Dark gradient overlay */}
+              <div 
+                className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent)'
+                }}
+              />
+              {/* Text overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                <div className="text-white">
+                  <div className="text-2xl mb-1" style={{ fontWeight: 700 }}>Toyota Yaris</div>
+                  <div className="text-sm opacity-90">Компактный седан для города</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </motion.div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="relative rounded-3xl overflow-hidden group cursor-pointer"
-          style={{
-            boxShadow: isDark 
-              ? '0 20px 60px rgba(0, 150, 150, 0.3)' 
-              : '0 20px 60px rgba(20, 60, 80, 0.2)'
-          }}
-        >
-          <ImageWithFallback
-            src={toyotaImage1}
-            alt="Toyota Veloz - Premium 7-seater MPV"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-            <div className="text-white">
-              <div className="text-2xl mb-1" style={{ fontWeight: 700 }}>Toyota Veloz</div>
-              <div className="text-sm opacity-90">{t('about.velozDesc')}</div>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="relative rounded-3xl overflow-hidden group cursor-pointer"
-          style={{
-            boxShadow: isDark 
-              ? '0 20px 60px rgba(0, 150, 150, 0.3)' 
-              : '0 20px 60px rgba(20, 60, 80, 0.2)'
-          }}
-        >
-          <ImageWithFallback
-            src={toyotaImage2}
-            alt="Toyota Yaris - Compact sedan perfect for city"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-            <div className="text-white">
-              <div className="text-2xl mb-1" style={{ fontWeight: 700 }}>Toyota Yaris</div>
-              <div className="text-sm opacity-90">{t('about.yarisDesc')}</div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
     </div>
   );
 }

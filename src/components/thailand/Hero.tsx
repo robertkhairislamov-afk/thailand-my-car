@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Car, TrendingUp, Shield, Loader2 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { Car, TrendingUp, Percent, ArrowUpRight } from 'lucide-react';
+import { motion, useScroll, useTransform, useMotionValueEvent, useSpring } from 'motion/react';
+import { useRef, useState, useEffect } from 'react';
+import tmcLogo from '../../assets/TMC.webp';
 import { api } from '../../services/api';
-import { useLanguage } from '../../contexts/LanguageContext';
-import toyotaHeroImage from '../../assets/toyota-yaris.webp';
 
 interface HeroProps {
   isDark: boolean;
@@ -22,243 +20,332 @@ interface FundraisingData {
 }
 
 export function Hero({ isDark, onInvestClick }: HeroProps) {
-  const { t } = useLanguage();
+  // Fundraising data from API
   const [fundraising, setFundraising] = useState<FundraisingData | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadFundraising = async () => {
-      const response = await api.getFundraising();
-      if (response.data) {
-        setFundraising(response.data);
-      }
-      setLoading(false);
-    };
-    loadFundraising();
+    api.getFundraising().then(res => {
+      if (res.data) setFundraising(res.data);
+    });
   }, []);
 
-  // Default values while loading
-  const targetBaht = fundraising?.target.baht || 2500000;
-  const targetUSD = fundraising?.target.usd || 76500; // ~2.5M / 32.65
-  const currentBaht = fundraising?.current.baht || 0;
-  const currentUSD = fundraising?.current.usd || 0;
-  const progress = fundraising?.progress || 0;
-  const investorsCount = fundraising?.investors.current || 0;
-  const maxInvestors = fundraising?.investors.max || 9;
-  const carsAvailable = fundraising?.cars?.available || 9;
-  const totalCars = fundraising?.cars?.total || 9;
+  // Use API data with fallbacks
+  const targetUSD = fundraising?.target.usd || 580000;
+  const currentUSD = fundraising?.current.usd || 510400;
+  const progress = fundraising?.progress || (currentUSD / targetUSD) * 100;
+  const availableCars = fundraising?.cars?.available || 8;
 
-  // Countdown removed by user request
+  // Scroll-based animation for video playback
+  const heroRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
+
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end end"]
+  });
+
+  // Physics-based smoothing for video scrubbing (Apple-style smoothness)
+  const smoothProgress = useSpring(scrollYProgress, {
+    damping: 15,
+    stiffness: 50,
+    mass: 0.2
+  });
+
+  // Sync video time with smooth scroll progress
+  useMotionValueEvent(smoothProgress, "change", (latest) => {
+    if (videoRef.current && videoDuration > 0) {
+      const targetTime = Math.min(Math.max(latest * videoDuration, 0), videoDuration);
+      videoRef.current.currentTime = targetTime;
+    }
+  });
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setVideoDuration(videoRef.current.duration);
+    }
+  };
 
   return (
-    <div className="relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute top-20 -right-20 sm:right-0 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 rounded-full blur-3xl opacity-20 ${
-          isDark ? 'bg-[#009696]' : 'bg-[#009696]'
-        }`} />
-        <div className={`absolute bottom-0 -left-20 sm:left-0 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 rounded-full blur-3xl opacity-20 ${
-          isDark ? 'bg-[#FFC850]' : 'bg-[#FFC850]'
-        }`} />
-      </div>
+    <div ref={heroRef} className="relative overflow-hidden min-h-[150vh] rounded-3xl mx-4 mt-4">
+      {/* Sticky Container for the Video Background */}
+      <div className="sticky top-4 h-[90vh] rounded-3xl overflow-hidden">
+        {/* Background Video (All-Intra MP4 optimized for scroll scrubbing) */}
+        <video
+          ref={videoRef}
+          src="/Toyota_veloz_driving_final.mp4"
+          className="absolute inset-0 w-full h-full object-cover"
+          muted
+          playsInline
+          preload="auto"
+          onLoadedMetadata={handleLoadedMetadata}
+          style={{ transform: 'translate3d(0, 0, 0)' }}
+        />
+        
+        {/* Final Professional Gradient Overlay - Soft Midnight Blue shadows */}
+        <div className="absolute inset-0 pointer-events-none z-[1]" style={{
+          background: `linear-gradient(90deg, 
+            rgba(2, 10, 15, 0.7) 0%, 
+            rgba(2, 10, 15, 0.4) 35%, 
+            rgba(2, 10, 15, 0) 100%),
+            linear-gradient(to top, 
+            rgba(2, 10, 15, 0.4) 0%, 
+            rgba(2, 10, 15, 0) 50%)`
+        }} />
 
-      <div className="relative max-w-7xl mx-auto px-6 py-16 md:py-24">
-        {/* Main Hero Content */}
-        <div className="text-center mb-12">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
-            style={{
-              background: isDark 
-                ? 'rgba(0, 150, 150, 0.2)' 
-                : 'rgba(0, 150, 150, 0.1)',
-              border: `1px solid ${isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'}`
-            }}
-          >
-            <Car className="w-4 h-4" style={{ color: '#009696' }} />
-            <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              {t('hero.badge')}
-            </span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl tracking-tight mb-6 px-2 sm:px-0"
-            style={{
-              color: isDark ? '#FFC850' : '#143C50',
-              fontWeight: 700,
-              lineHeight: 1.1
-            }}
-          >
-            <span className="block sm:inline">{t('hero.title')}</span>{' '}
-            <span className="block sm:inline">{t('hero.titleAccent')}</span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-base sm:text-xl md:text-2xl mb-8 max-w-3xl mx-auto px-2 sm:px-0"
-            style={{
-              color: isDark ? '#FFFAF0' : '#143C50',
-              opacity: 0.9
-            }}
-          >
-            {t('hero.subtitle', { count: totalCars })}
-          </motion.p>
-
-          {/* Key Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-wrap items-center justify-center gap-6 md:gap-8 mb-12"
-          >
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: isDark ? 'rgba(40, 180, 140, 0.2)' : 'rgba(40, 180, 140, 0.1)' }}>
-                <Car className="w-5 h-5" style={{ color: '#28B48C' }} />
-              </div>
-              <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('hero.carsAvailable')}</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{carsAvailable} {t('hero.of')} {totalCars}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: isDark ? 'rgba(0, 150, 150, 0.2)' : 'rgba(0, 150, 150, 0.1)' }}>
-                <TrendingUp className="w-5 h-5" style={{ color: '#009696' }} />
-              </div>
-              <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('hero.staking')}</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{t('hero.stakingRate')}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: isDark ? 'rgba(255, 200, 80, 0.2)' : 'rgba(255, 200, 80, 0.1)' }}>
-                <Shield className="w-5 h-5" style={{ color: '#FFC850' }} />
-              </div>
-              <div className="text-left">
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('hero.bigInvestors')}</div>
-                <div className="text-lg" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>{t('hero.bigInvestorsReturn')}</div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* CTA Button */}
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            onClick={onInvestClick}
-            className="px-8 py-4 rounded-2xl text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-            style={{
-              background: 'linear-gradient(135deg, #28B48C 0%, #009696 100%)',
-              color: '#FFFAF0',
-              fontWeight: 600
-            }}
-          >
-            {t('hero.cta')}
-          </motion.button>
-        </div>
-
-        {/* Fundraising Progress Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="max-w-4xl mx-auto rounded-3xl p-8 backdrop-blur-xl border shadow-2xl"
-          style={{
-            background: isDark 
-              ? 'linear-gradient(135deg, rgba(26, 78, 100, 0.9) 0%, rgba(20, 60, 80, 0.8) 100%)'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 250, 240, 0.8) 100%)',
-            borderColor: isDark ? 'rgba(0, 150, 150, 0.3)' : 'rgba(0, 150, 150, 0.2)'
-          }}
-        >
-          {/* Header */}
-          <div className="mb-6">
-            <h3 className="text-2xl mb-1" style={{ color: isDark ? '#FFC850' : '#143C50', fontWeight: 600 }}>
-              {t('hero.fundraising')}
-            </h3>
-            <p className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              {t('hero.investors')}: {investorsCount}
-            </p>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-3xl mb-1" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 700 }}>
-                  ฿{currentBaht.toLocaleString()}
-                </div>
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  ${currentUSD.toLocaleString()} USDT {t('hero.collected')}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl mb-1" style={{ color: '#009696', fontWeight: 600 }}>
-                  {progress.toFixed(1)}%
-                </div>
-                <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                  {t('hero.goal')}: ฿{targetBaht.toLocaleString()}
-                </div>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="h-3 rounded-full overflow-hidden" style={{
-              backgroundColor: isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'
-            }}>
+        <div className="relative max-w-7xl mx-auto px-6 py-12 md:py-20 h-full flex items-center z-10">
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start w-full">
+            
+            {/* Left Column - Hero Content */}
+            <div className="space-y-8 relative z-20">
+              {/* Main Glassmorphism Card */}
               <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 1.5, delay: 0.7, ease: "easeOut" }}
-                className="h-full rounded-full relative"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6 }}
+                className="rounded-3xl p-8 md:p-12 backdrop-blur-xl border shadow-2xl"
                 style={{
-                  background: 'linear-gradient(90deg, #28B48C 0%, #009696 100%)'
+                  background: 'rgba(35, 60, 65, 0.5)',
+                  borderColor: 'rgba(0, 150, 150, 0.4)',
+                  boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 25px 50px rgba(0, 0, 0, 0.3)'
                 }}
               >
-                {/* Shimmer effect */}
-                <div className="absolute inset-0 opacity-50"
-                  style={{
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                    animation: 'shimmer 2s infinite'
+                <motion.h1 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  className="text-4xl md:text-5xl lg:text-6xl mb-6"
+                  style={{ 
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    lineHeight: 1.2
                   }}
-                />
+                >
+                  Инвестируйте<br />
+                  в рентал-бизнес
+                </motion.h1>
+
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="text-base md:text-lg mb-8"
+                  style={{ 
+                    color: 'rgba(255, 255, 255, 0.85)'
+                  }}
+                >
+                  {availableCars} автомобилей Toyota • От $1,000 • 1.7%/мес<br />
+                  или авто в собственность
+                </motion.p>
+
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  onClick={onInvestClick}
+                  className="px-8 py-4 rounded-2xl text-base md:text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  style={{
+                    background: '#40E0D0',
+                    color: '#FFFFFF',
+                    fontWeight: 600
+                  }}
+                >
+                  Инвестировать сейчас
+                </motion.button>
+              </motion.div>
+
+              {/* Progress Bar Card */}
+              <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="rounded-2xl p-6 backdrop-blur-xl border"
+                style={{
+                  background: 'rgba(35, 60, 65, 0.5)',
+                  borderColor: 'rgba(0, 150, 150, 0.4)',
+                  boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 25px 50px rgba(0, 0, 0, 0.3)'
+                }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <div className="text-2xl md:text-3xl mb-1" style={{ color: '#FFFFFF', fontWeight: 700 }}>
+                      ${currentUSD.toLocaleString()}
+                    </div>
+                    <div className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
+                      Собрано из ${targetUSD.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="text-3xl" style={{ color: '#FFFFFF', fontWeight: 700 }}>
+                    {progress.toFixed(0)}%
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="h-3 rounded-full overflow-hidden" style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)'
+                }}>
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 1.5, delay: 0.6, ease: "easeOut" }}
+                    className="h-full rounded-full"
+                    style={{
+                      background: 'linear-gradient(90deg, #40E0D0 0%, #00CED1 100%)'
+                    }}
+                  />
+                </div>
               </motion.div>
             </div>
           </div>
 
-          {/* Bottom Info */}
-          <div className="flex items-center justify-between flex-wrap gap-4 pt-6"
-            style={{
-              borderTop: `1px solid ${isDark ? 'rgba(255, 250, 240, 0.1)' : 'rgba(20, 60, 80, 0.1)'}`
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <Car className="w-5 h-5" style={{ color: '#28B48C' }} />
-              <span className="text-sm" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                {t('hero.carOwnership')}: {carsAvailable} {t('hero.available')}
-              </span>
-            </div>
-            <div className="text-sm opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-              {t('hero.minStaking')} • {t('hero.minCar')}
-            </div>
-          </div>
-        </motion.div>
-      </div>
+          {/* 🎨 FLOATING STAT CARDS - Positioned around Toyota */}
+          <div className="hidden lg:block pointer-events-none">
+            {/* Card 1: 8 Cars - LEFT CENTER */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8, y: 0 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                y: [0, -10, 0] // Float up and down
+              }}
+              transition={{ 
+                duration: 0.6, // Entrance duration
+                delay: 0.5,
+                y: {
+                  duration: 4, // Float cycle duration
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut"
+                }
+              }}
+              className="absolute rounded-2xl backdrop-blur-xl border shadow-2xl"
+              style={{
+                left: '795px',
+                top: '320px',
+                width: '120px',
+                height: '120px',
+                background: 'rgba(35, 60, 65, 0.5)',
+                borderColor: 'rgba(0, 150, 150, 0.4)',
+                boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3)',
+                zIndex: 20
+              }}
+            >
+                          <div className="h-full flex flex-col items-center justify-center gap-2 p-4">
+                            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{
+                              background: 'rgba(0, 150, 150, 0.2)',
+                              border: '1px solid rgba(0, 150, 150, 0.3)'
+                            }}>
+                              <img src={tmcLogo} alt="TMC" className="w-8 h-auto object-contain" />
+                            </div>
+                            <div className="text-center">                  <div className="text-2xl mb-0.5" style={{ color: '#FFFFFF', fontWeight: 700 }}>
+                    {availableCars}
+                  </div>
+                  <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
+                    Cars
+                  </div>
+                </div>
+              </div>
+            </motion.div>
 
-      <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
+            {/* Card 2: 1.7%/мес - TOP RIGHT */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8, y: 0 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                y: [0, -15, 0] // Slightly larger range
+              }}
+              transition={{ 
+                duration: 0.6,
+                delay: 0.6,
+                y: {
+                  duration: 5, // Slower
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut",
+                  delay: 0
+                }
+              }}
+              className="absolute rounded-2xl backdrop-blur-xl border shadow-2xl"
+              style={{
+                left: '1100px',
+                top: '250px',
+                width: '160px',
+                height: '120px',
+                background: 'rgba(35, 60, 65, 0.5)',
+                borderColor: 'rgba(0, 150, 150, 0.4)',
+                boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3)',
+                zIndex: 20
+              }}
+            >
+              <div className="h-full flex flex-col items-center justify-center gap-2 p-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{
+                  background: 'rgba(0, 150, 150, 0.2)'
+                }}>
+                  <Percent className="w-6 h-6" style={{ color: '#28B48C' }} />
+                </div>
+                <div className="text-center">
+                  <div className="text-lg mb-0.5 leading-tight" style={{ color: '#FFFFFF', fontWeight: 700 }}>
+                    1.7%/мес.
+                  </div>
+                  <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
+                    доход
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Card 3: Прогноз +20% - BOTTOM RIGHT */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8, y: 0 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                y: [0, -8, 0] // Smaller range
+              }}
+              transition={{ 
+                duration: 0.6,
+                delay: 0.7,
+                y: {
+                  duration: 3.5, // Faster
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut",
+                  delay: 1
+                }
+              }}
+              className="absolute rounded-2xl backdrop-blur-xl border shadow-2xl"
+              style={{
+                left: '1000px',
+                top: '540px',
+                width: '160px',
+                height: '120px',
+                background: 'rgba(35, 60, 65, 0.5)',
+                borderColor: 'rgba(0, 150, 150, 0.4)',
+                boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 20px 40px rgba(0, 0, 0, 0.3)',
+                zIndex: 20
+              }}
+            >
+              <div className="h-full flex flex-col items-center justify-center gap-2 p-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{
+                  background: 'rgba(0, 150, 150, 0.2)'
+                }}>
+                  <ArrowUpRight className="w-6 h-6" style={{ color: '#28B48C' }} />
+                </div>
+                <div className="text-center">
+                  <div className="text-xs mb-0.5" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
+                    Прогноз
+                  </div>
+                  <div className="text-xl" style={{ color: '#FFFFFF', fontWeight: 700 }}>
+                    +20%
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

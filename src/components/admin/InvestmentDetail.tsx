@@ -1,54 +1,49 @@
-import { ArrowLeft, Copy, ExternalLink, CheckCircle, XCircle, AlertCircle, Clock, DollarSign, Calendar, TrendingUp, Shield, ShieldAlert, ShieldCheck, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowLeft, Copy, ExternalLink, CheckCircle, XCircle, AlertCircle, Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
-import { api } from '../../services/api';
 
 interface InvestmentDetailProps {
   isDark: boolean;
-  investment: any;
   onBack: () => void;
-  onUpdateStatus?: (id: number, status: string) => void;
 }
 
-export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, onUpdateStatus }: InvestmentDetailProps) {
+export function InvestmentDetail({ isDark, onBack }: InvestmentDetailProps) {
   const [copied, setCopied] = useState(false);
-  const [notes, setNotes] = useState(rawInvestment?.notes || '');
-  const [verifying, setVerifying] = useState(false);
-  const [txVerified, setTxVerified] = useState(rawInvestment?.tx_verified || false);
-  const [txVerificationStatus, setTxVerificationStatus] = useState(rawInvestment?.tx_verification_status || 'pending');
-  const [txVerificationDetails, setTxVerificationDetails] = useState(rawInvestment?.tx_verification_details || null);
+  const [notes, setNotes] = useState('');
 
-  // Map raw data from API to expected format
+  // Mock data - replace with real data from API
   const investment = {
-    id: rawInvestment?.id || 0,
-    status: rawInvestment?.status || 'pending',
-    amount: Number(rawInvestment?.amount_usdt || 0),
-    amountCrypto: Number(rawInvestment?.amount_usdt || 0),
+    id: 42,
+    status: 'confirmed',
+    amount: 13800,
+    amountCrypto: 13800,
     tokenSymbol: 'USDT',
     tier: {
-      id: rawInvestment?.tier_id || 1,
-      name: rawInvestment?.tier_name || (rawInvestment?.tier_id === 1 ? '6 месяцев +20%' : 'Долгосрочное участие'),
-      roiPercent: rawInvestment?.tier_id === 1 ? 20 : null,
-      duration: rawInvestment?.tier_id === 1 ? '6' : 'ongoing'
+      id: 1,
+      name: 'Долгосрочное участие',
+      roiPercent: null,
+      duration: 'ongoing'
     },
     blockchain: 'BSC',
-    transactionHash: rawInvestment?.tx_hash || '',
-    blockNumber: rawInvestment?.block_number || 0,
-    fromAddress: rawInvestment?.wallet_address || '',
-    toAddress: '0x8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B742d35fA', // Platform wallet
-    investmentDate: rawInvestment?.created_at || new Date().toISOString(),
-    unlockDate: rawInvestment?.unlock_date || null,
-    expectedReturn: rawInvestment?.expected_return || null,
-    confirmedAt: rawInvestment?.confirmed_at || null,
+    transactionHash: '0x742d35fA8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B',
+    blockNumber: 12345678,
+    fromAddress: '0x742d35fA8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B',
+    toAddress: '0x8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B742d35fA',
+    investmentDate: '2024-11-24T10:30:00Z',
+    unlockDate: null,
+    expectedReturn: null,
+    confirmedAt: '2024-11-24T11:00:00Z',
     investor: {
-      walletAddress: rawInvestment?.wallet_address || '',
-      email: rawInvestment?.user_email || '',
-      telegram: rawInvestment?.user_telegram || '',
-      totalInvested: Number(rawInvestment?.user_total_invested || rawInvestment?.amount_usdt || 0),
-      joinedDate: rawInvestment?.user_joined || rawInvestment?.created_at || new Date().toISOString(),
-      kycVerified: rawInvestment?.kyc_verified || false
+      walletAddress: '0x742d35fA8B5A9C2D1F3C7A8B9E2D4B1C3E4f5A6B',
+      email: 'investor@example.com',
+      telegram: '@cryptoinvestor',
+      totalInvested: 13800,
+      joinedDate: '2024-11-24T10:30:00Z',
+      kycVerified: false
     },
-    timeline: rawInvestment?.timeline || [
-      { status: 'created', timestamp: rawInvestment?.created_at, admin: null, note: 'Инвестиция создана' }
+    timeline: [
+      { status: 'created', timestamp: '2024-11-24T10:30:00Z', admin: null, note: 'Инвестиция создана' },
+      { status: 'submitted', timestamp: '2024-11-24T10:32:00Z', admin: null, note: 'Транзакция отправлена' },
+      { status: 'confirmed', timestamp: '2024-11-24T11:00:00Z', admin: 'Admin', note: 'Проверено, транзакция подтверждена на блокчейне' }
     ]
   };
 
@@ -58,98 +53,32 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleVerifyTx = async () => {
-    if (!rawInvestment?.id || !rawInvestment?.tx_hash) return;
-
-    setVerifying(true);
-    try {
-      const response = await api.verifyTransaction(rawInvestment.id);
-      if (response.data) {
-        setTxVerified(response.data.verified);
-        setTxVerificationStatus(response.data.status);
-        setTxVerificationDetails(response.data.details);
-      }
-    } catch (error) {
-      console.error('Verification error:', error);
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const getVerificationColor = (status: string) => {
-    switch (status) {
-      case 'verified': return '#28B48C';
-      case 'pending': return '#FFC850';
-      case 'failed':
-      case 'not_found':
-      case 'amount_mismatch':
-      case 'recipient_mismatch': return '#E74C3C';
-      default: return '#FFC850';
-    }
-  };
-
-  const getVerificationIcon = (status: string) => {
-    switch (status) {
-      case 'verified': return <ShieldCheck className="w-5 h-5" />;
-      case 'pending': return <Shield className="w-5 h-5" />;
-      default: return <ShieldAlert className="w-5 h-5" />;
-    }
-  };
-
-  const getVerificationText = (status: string) => {
-    switch (status) {
-      case 'verified': return 'Транзакция верифицирована';
-      case 'pending': return 'Ожидает проверки';
-      case 'not_found': return 'Транзакция не найдена';
-      case 'failed': return 'Транзакция не прошла';
-      case 'amount_mismatch': return 'Сумма не совпадает';
-      case 'recipient_mismatch': return 'Получатель не совпадает';
-      case 'error': return 'Ошибка проверки';
-      default: return status;
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-      case 'pending_confirmation': return '#FFC850';
-      case 'withdrawal_requested': return '#9B59B6';
-      case 'confirmed':
-      case 'active': return '#28B48C';
+      case 'pending': return '#FFC850';
+      case 'confirmed': return '#28B48C';
       case 'completed': return '#009696';
-      case 'rejected':
-      case 'cancelled':
-      case 'refunded': return '#E74C3C';
+      case 'rejected': return '#E74C3C';
       default: return '#FFFAF0';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending':
-      case 'pending_confirmation': return <Clock className="w-5 h-5" />;
-      case 'withdrawal_requested': return <DollarSign className="w-5 h-5" />;
-      case 'confirmed':
-      case 'active': return <CheckCircle className="w-5 h-5" />;
+      case 'pending': return <Clock className="w-5 h-5" />;
+      case 'confirmed': return <CheckCircle className="w-5 h-5" />;
       case 'completed': return <CheckCircle className="w-5 h-5" />;
-      case 'rejected':
-      case 'cancelled':
-      case 'refunded': return <XCircle className="w-5 h-5" />;
+      case 'rejected': return <XCircle className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'Ожидает';
-      case 'pending_confirmation': return 'Ожидает подтверждения оплаты';
-      case 'withdrawal_requested': return 'Запрос на вывод';
+      case 'pending': return 'Ожидает подтверждения';
       case 'confirmed': return 'Подтверждено';
-      case 'active': return 'Активно';
       case 'completed': return 'Завершено';
       case 'rejected': return 'Отклонено';
-      case 'cancelled': return 'Отменено';
-      case 'refunded': return 'Возврат';
       default: return status;
     }
   };
@@ -197,10 +126,9 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
             <span style={{ fontWeight: 600 }}>{getStatusText(investment.status)}</span>
           </div>
           
-          {(investment.status === 'pending' || investment.status === 'pending_confirmation') && onUpdateStatus && (
+          {investment.status === 'pending' && (
             <div className="flex gap-2">
               <button
-                onClick={() => onUpdateStatus(investment.id, 'active')}
                 className="px-4 py-2 rounded-xl transition-all hover:scale-105"
                 style={{
                   background: '#28B48C',
@@ -210,7 +138,6 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
                 Подтвердить
               </button>
               <button
-                onClick={() => onUpdateStatus(investment.id, 'rejected')}
                 className="px-4 py-2 rounded-xl transition-all hover:scale-105"
                 style={{
                   background: 'rgba(231,76,60,0.2)',
@@ -219,32 +146,6 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
                 }}
               >
                 Отклонить
-              </button>
-            </div>
-          )}
-
-          {investment.status === 'withdrawal_requested' && onUpdateStatus && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => onUpdateStatus(investment.id, 'completed')}
-                className="px-4 py-2 rounded-xl transition-all hover:scale-105"
-                style={{
-                  background: '#009696',
-                  color: '#FFFAF0'
-                }}
-              >
-                Выплачено
-              </button>
-              <button
-                onClick={() => onUpdateStatus(investment.id, 'active')}
-                className="px-4 py-2 rounded-xl transition-all hover:scale-105"
-                style={{
-                  background: 'rgba(255,200,80,0.2)',
-                  color: '#FFC850',
-                  border: '1px solid rgba(255,200,80,0.3)'
-                }}
-              >
-                Отменить запрос
               </button>
             </div>
           )}
@@ -411,102 +312,6 @@ export function InvestmentDetail({ isDark, investment: rawInvestment, onBack, on
               </div>
             </div>
           </div>
-
-          {/* TX Verification Status */}
-          {rawInvestment?.tx_hash && (
-            <div
-              className="rounded-2xl p-6 backdrop-blur-xl border"
-              style={{
-                background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.9)',
-                borderColor: getVerificationColor(txVerificationStatus)
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl" style={{ color: isDark ? '#FFFAF0' : '#143C50', fontWeight: 600 }}>
-                  Верификация TX
-                </h2>
-                <div
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-                  style={{
-                    background: `${getVerificationColor(txVerificationStatus)}20`,
-                    color: getVerificationColor(txVerificationStatus)
-                  }}
-                >
-                  {getVerificationIcon(txVerificationStatus)}
-                  <span style={{ fontWeight: 600, fontSize: '14px' }}>{getVerificationText(txVerificationStatus)}</span>
-                </div>
-              </div>
-
-              {/* Verification Details */}
-              {txVerificationDetails && (
-                <div className="space-y-3 mb-4">
-                  {txVerificationDetails.from && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Отправитель:</span>
-                      <code className="font-mono text-xs" style={{ color: '#009696' }}>
-                        {txVerificationDetails.from.slice(0, 8)}...{txVerificationDetails.from.slice(-6)}
-                      </code>
-                    </div>
-                  )}
-                  {txVerificationDetails.amount && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Сумма:</span>
-                      <span style={{ color: '#28B48C', fontWeight: 600 }}>
-                        ${txVerificationDetails.amount.toLocaleString()} {txVerificationDetails.token}
-                      </span>
-                    </div>
-                  )}
-                  {txVerificationDetails.timestamp && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Время транзакции:</span>
-                      <span style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                        {new Date(txVerificationDetails.timestamp).toLocaleString('ru-RU')}
-                      </span>
-                    </div>
-                  )}
-                  {txVerificationDetails.confirmations && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="opacity-70" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Подтверждений:</span>
-                      <span style={{ color: '#28B48C', fontWeight: 600 }}>
-                        {txVerificationDetails.confirmations}
-                      </span>
-                    </div>
-                  )}
-                  {txVerificationDetails.error && (
-                    <div className="p-3 rounded-lg" style={{ background: 'rgba(231,76,60,0.1)' }}>
-                      <span className="text-sm" style={{ color: '#E74C3C' }}>
-                        {txVerificationDetails.error}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Re-verify Button */}
-              <button
-                onClick={handleVerifyTx}
-                disabled={verifying}
-                className="w-full px-4 py-2 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2"
-                style={{
-                  background: isDark ? 'rgba(0,150,150,0.2)' : 'rgba(0,150,150,0.1)',
-                  color: '#009696',
-                  border: `1px solid ${isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'}`
-                }}
-              >
-                {verifying ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Проверяем...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    Перепроверить транзакцию
-                  </>
-                )}
-              </button>
-            </div>
-          )}
 
           {/* Admin Notes */}
           <div 
