@@ -151,17 +151,17 @@ export function ThailandHeader({
                 }}
               />
             </div>
-            <div className="hidden sm:block">
-              <div className="text-xl" style={{ 
-                color: 'rgb(255, 200, 80)', 
-                fontWeight: 700, 
-                lineHeight: 1 
+            <div>
+              <div className="text-lg sm:text-xl" style={{
+                color: 'rgb(255, 200, 80)',
+                fontWeight: 700,
+                lineHeight: 1
               }}>
                 Thailand My Car
               </div>
-              <div className="text-xs" style={{ 
-                color: 'rgb(255, 250, 240)', 
-                opacity: 0.7 
+              <div className="text-xs" style={{
+                color: 'rgb(255, 250, 240)',
+                opacity: 0.7
               }}>
                 Инвестиции в рентал
               </div>
