@@ -116,7 +116,7 @@ class ApiService {
       cars: { total: number; assigned: number; available: number };
       deadline: string;
       isActive: boolean;
-    }>('/api/investments/fundraising');
+    }>(`/api/investments/fundraising?network=${NETWORK}`);
   }
 
   async getPlatformSettings() {
@@ -137,7 +137,7 @@ class ApiService {
       total: number;
       assigned: number;
       available: number;
-    }>('/api/investments/cars/available');
+    }>(`/api/investments/cars/available?network=${NETWORK}`);
   }
 
   async createInvestment(data: {
@@ -184,7 +184,7 @@ class ApiService {
   }
 
   async getWalletInvestments(walletAddress: string) {
-    return this.request<any[]>(`/api/investments/wallet/${walletAddress}`);
+    return this.request<any[]>(`/api/investments/wallet/${walletAddress}?network=${NETWORK}`);
   }
 
   async getMyInvestments() {

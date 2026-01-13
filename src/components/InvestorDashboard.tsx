@@ -56,30 +56,17 @@ export function InvestorDashboard({ walletAddress }: InvestorDashboardProps) {
     setError(null);
 
     try {
-      // In a real app, this calls api.getWalletInvestments(walletAddress)
-      // For demo purposes, we can provide some mock data if API fails or returns empty
       const response = await api.getMyInvestments();
 
       if (response.data) {
-        // If API returns data, use it. Otherwise use dummy data for visualization
-        const rawData = response.data.length > 0 ? response.data : [
-          {
-            id: 'demo-1',
-            amount_usdt: '5000',
-            status: 'active',
-            tier_type: 'staking',
-            invested_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-            total_withdrawn_earnings: '0'
-          },
-          {
-            id: 'demo-2',
-            amount_usdt: '12400',
-            status: 'active',
-            tier_type: 'car_share',
-            invested_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-            total_withdrawn_earnings: '0'
-          }
-        ];
+        // Use only real data from API, no demo data
+        const rawData = response.data;
+
+        if (rawData.length === 0) {
+          setInvestments([]);
+          setLoading(false);
+          return;
+        }
 
         const transformed = rawData.map((inv: any) => {
           const startDate = new Date(inv.invested_at || inv.created_at);
@@ -187,6 +174,12 @@ export function InvestorDashboard({ walletAddress }: InvestorDashboardProps) {
         </div>
       ) : loading ? (
         <div className="flex justify-center py-20"><Loader2 className="animate-spin w-10 h-10" style={{ color: '#009696' }} /></div>
+      ) : investments.length === 0 ? (
+        <div className="text-center py-20 bg-black/20 rounded-3xl border border-white/10 backdrop-blur-xl">
+          <DollarSign size={48} className="mx-auto mb-4 opacity-50" style={{ color: '#009696' }} />
+          <h2 className="text-2xl font-bold mb-2" style={{ color: '#FFFAF0' }}>{t('dashboard.noInvestments')}</h2>
+          <p className="opacity-60" style={{ color: '#FFFAF0' }}>{t('dashboard.startInvestingHere')}</p>
+        </div>
       ) : (
         <div className="space-y-8">
           {/* Stats Cards */}
