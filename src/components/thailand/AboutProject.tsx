@@ -470,7 +470,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
                 className="w-full h-full"
               >
                 <video 
-                  src="/VELOZ_cropped.mp4"
+                  src={`${import.meta.env.BASE_URL}VELOZ_cropped.mp4`}
                   autoPlay
                   muted
                   loop
@@ -517,7 +517,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
                 className="w-full h-full"
               >
                 <video 
-                  src="/ATIV_cropped.mp4"
+                  src={`${import.meta.env.BASE_URL}ATIV_cropped.mp4`}
                   autoPlay
                   muted
                   loop

@@ -165,10 +165,11 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
     }
   }, [sessionId, waitingForAdmin, lastMessageTime, messages, isOpen, isMinimized]);
 
-  // Start/stop polling
+  // Start/stop polling - ТОЛЬКО когда чат открыт!
   useEffect(() => {
-    // Polling всегда когда есть сессия (чтобы видеть закрытие чата)
-    if (sessionId && isRegistered) {
+    // ✅ ОПТИМИЗАЦИЯ: Polling ТОЛЬКО когда чат открыт
+    // Экономия CPU/Network когда пользователь не использует чат
+    if (sessionId && isRegistered && isOpen) {
       const interval = waitingForAdmin ? 5000 : 15000; // Чаще когда ждём админа
       pollingRef.current = setInterval(pollForMessages, interval);
     }
@@ -179,7 +180,7 @@ export function ChatWidget({ isDark }: ChatWidgetProps) {
         pollingRef.current = null;
       }
     };
-  }, [waitingForAdmin, sessionId, isRegistered, pollForMessages]);
+  }, [waitingForAdmin, sessionId, isRegistered, isOpen, pollForMessages]);
 
   // Save session to localStorage and sync with admin
   const saveSession = (msgs: Message[]) => {

@@ -15,7 +15,7 @@ export function HeroExport() {
       <div className="w-full max-w-[1920px] mx-auto px-8 py-8">
         
         {/* Glassmorphism Navigation Header */}
-        <header className="rounded-3xl mb-12 backdrop-blur-xl border shadow-2xl" style={{
+        <header className="rounded-3xl mb-12  border shadow-2xl" style={{
           background: 'rgba(20, 60, 80, 0.85)',
           borderColor: 'rgba(0, 217, 255, 0.3)'
         }}>
@@ -78,7 +78,7 @@ export function HeroExport() {
           
           {/* Left Column - Large Investment Card */}
           <div className="space-y-6">
-            <div className="rounded-3xl p-12 backdrop-blur-xl border shadow-2xl" style={{
+            <div className="rounded-3xl p-12  border shadow-2xl" style={{
               background: 'rgba(20, 60, 80, 0.85)',
               borderColor: 'rgba(0, 217, 255, 0.3)'
             }}>
@@ -142,7 +142,7 @@ export function HeroExport() {
           {/* Right Column - Three Floating Stat Cards */}
           <div className="flex flex-col gap-6">
             {/* Card 1: 8 Cars */}
-            <div className="rounded-2xl p-8 backdrop-blur-xl border shadow-xl transition-all hover:scale-105" style={{
+            <div className="rounded-2xl p-8  border shadow-xl transition-all hover:scale-105" style={{
               background: 'rgba(20, 60, 80, 0.85)',
               borderColor: 'rgba(0, 217, 255, 0.3)'
             }}>
@@ -165,7 +165,7 @@ export function HeroExport() {
             </div>
 
             {/* Card 2: 1.7%/мес Доход */}
-            <div className="rounded-2xl p-8 backdrop-blur-xl border shadow-xl transition-all hover:scale-105" style={{
+            <div className="rounded-2xl p-8  border shadow-xl transition-all hover:scale-105" style={{
               background: 'rgba(20, 60, 80, 0.85)',
               borderColor: 'rgba(0, 217, 255, 0.3)'
             }}>
@@ -188,7 +188,7 @@ export function HeroExport() {
             </div>
 
             {/* Card 3: Прогноз +20% */}
-            <div className="rounded-2xl p-8 backdrop-blur-xl border shadow-xl transition-all hover:scale-105" style={{
+            <div className="rounded-2xl p-8  border shadow-xl transition-all hover:scale-105" style={{
               background: 'rgba(20, 60, 80, 0.85)',
               borderColor: 'rgba(0, 217, 255, 0.3)'
             }}>
@@ -213,7 +213,7 @@ export function HeroExport() {
         </div>
 
         {/* Progress Bar at Bottom */}
-        <div className="mt-12 rounded-3xl p-10 backdrop-blur-xl border shadow-2xl" style={{
+        <div className="mt-12 rounded-3xl p-10  border shadow-2xl" style={{
           background: 'rgba(20, 60, 80, 0.85)',
           borderColor: 'rgba(0, 217, 255, 0.3)'
         }}>
@@ -271,7 +271,7 @@ export function HeroExport() {
 
         {/* Footer Badge */}
         <div className="mt-8 text-center">
-          <div className="inline-block px-6 py-3 rounded-full backdrop-blur-xl" style={{
+          <div className="inline-block px-6 py-3 rounded-full " style={{
             background: 'rgba(20, 60, 80, 0.85)',
             border: '1px solid rgba(0, 217, 255, 0.3)'
           }}>

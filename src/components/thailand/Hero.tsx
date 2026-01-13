@@ -1,6 +1,6 @@
 import { Car, TrendingUp, Percent, ArrowUpRight } from 'lucide-react';
 import { motion, useScroll, useTransform, useMotionValueEvent, useSpring } from 'motion/react';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, memo } from 'react';
 import tmcLogo from '../../assets/TMC.webp';
 import { api } from '../../services/api';
 
@@ -19,7 +19,8 @@ interface FundraisingData {
   isActive: boolean;
 }
 
-export function Hero({ isDark, onInvestClick }: HeroProps) {
+function HeroComponent({ isDark, onInvestClick }: HeroProps) {
+  console.count('🔍 Hero render');
   // Fundraising data from API
   const [fundraising, setFundraising] = useState<FundraisingData | null>(null);
 
@@ -73,7 +74,7 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
         {/* Background Video (All-Intra MP4 optimized for scroll scrubbing) */}
         <video
           ref={videoRef}
-          src="/Toyota_veloz_driving_final.mp4"
+          src={`${import.meta.env.BASE_URL}Toyota_veloz_driving_final.mp4`}
           className="absolute inset-0 w-full h-full object-cover"
           muted
           playsInline
@@ -349,3 +350,5 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
     </div>
   );
 }
+
+export const Hero = memo(HeroComponent);
