@@ -7,6 +7,7 @@ import {
   TrendingUp, DollarSign, Clock, ChevronLeft
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ProfilePageProps {
   walletAddress: string | null;
@@ -36,6 +37,7 @@ interface Stats {
 }
 
 export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePageProps) {
+  const { t, language } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,7 +118,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
         }
       } catch (err) {
         console.error('Failed to load profile:', err);
-        setError('Не удалось загрузить профиль');
+        setError(t('profile.loadError'));
       } finally {
         setLoading(false);
       }
@@ -146,12 +148,12 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
       if (response.error) {
         setError(response.error);
       } else {
-        setSuccess('Профиль успешно обновлен');
+        setSuccess(t('profile.updateSuccess'));
         setTimeout(() => setSuccess(null), 3000);
       }
     } catch (err) {
       console.error('Failed to update profile:', err);
-      setError('Не удалось сохранить профиль');
+      setError(t('profile.saveError'));
     } finally {
       setSaving(false);
     }
@@ -169,7 +171,8 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
+    const locales: Record<string, string> = { ru: 'ru-RU', en: 'en-US', th: 'th-TH' };
+    return new Date(dateString).toLocaleDateString(locales[language] || 'en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric'
@@ -181,8 +184,8 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <Wallet className="h-16 w-16 mx-auto mb-4" style={{ color: isDark ? '#FFFAF0' : '#143C50' }} />
-          <h2 className="text-2xl font-bold mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Подключите кошелек</h2>
-          <p style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>Для просмотра профиля необходимо подключить кошелек</p>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('profile.connectWallet')}</h2>
+          <p style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>{t('profile.connectWalletDesc')}</p>
         </div>
       </div>
     );
@@ -206,7 +209,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
           style={{ color: isDark ? '#FFFAF0' : '#143C50' }}
         >
           <ChevronLeft className="h-5 w-5" />
-          <span>Назад</span>
+          <span>{t('profile.back')}</span>
         </button>
 
         {/* Header */}
@@ -222,7 +225,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">
-                {formData.name || 'Ваш профиль'}
+                {formData.name || t('profile.yourProfile')}
               </h1>
               <p className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.9)' }}>
                 <Wallet className="h-4 w-4" />
@@ -230,7 +233,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               </p>
               {profile && (
                 <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Участник с {formatDate(profile.createdAt)}
+                  {t('profile.memberSince')} {formatDate(profile.createdAt)}
                 </p>
               )}
             </div>
@@ -253,7 +256,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <DollarSign className="h-6 w-6 mb-2" style={{ color: '#009696' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Всего инвестировано</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.totalInvested')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>${stats.totalInvestedUsdt.toLocaleString()}</p>
             </div>
             <div
@@ -264,7 +267,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <TrendingUp className="h-6 w-6 mb-2" style={{ color: '#28B48C' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Инвестиций</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.investments')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{stats.totalInvestments}</p>
             </div>
             <div
@@ -275,7 +278,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <Clock className="h-6 w-6 mb-2" style={{ color: '#FFC850' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>Активные</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.activeInvestments')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{stats.activeInvestments}</p>
             </div>
             <div
@@ -286,7 +289,7 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               }}
             >
               <DollarSign className="h-6 w-6 mb-2" style={{ color: '#009696' }} />
-              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>В батах</p>
+              <p className="text-sm" style={{ color: isDark ? 'rgba(255,250,240,0.6)' : 'rgba(20,60,80,0.6)' }}>{t('profile.inBaht')}</p>
               <p className="text-xl font-bold" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>฿{stats.totalInvestedBaht.toLocaleString()}</p>
             </div>
           </motion.div>
@@ -327,21 +330,21 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
             borderColor: isDark ? 'rgba(0,150,150,0.3)' : 'rgba(0,150,150,0.2)'
           }}
         >
-          <h2 className="text-xl font-bold mb-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>Личная информация</h2>
+          <h2 className="text-xl font-bold mb-6" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>{t('profile.personalInfo')}</h2>
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Name */}
             <div>
               <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
                 <User className="h-4 w-4 inline mr-2" />
-                Имя
+                {t('profile.name')}
               </label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Ваше имя"
+                placeholder={t('profile.namePlaceholder')}
                 className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696]"
                 style={{
                   background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
@@ -480,13 +483,13 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
             {/* Bio */}
             <div className="md:col-span-2">
               <label className="block text-sm mb-2" style={{ color: isDark ? 'rgba(255,250,240,0.7)' : 'rgba(20,60,80,0.7)' }}>
-                О себе
+                {t('profile.bio')}
               </label>
               <textarea
                 name="bio"
                 value={formData.bio}
                 onChange={handleChange}
-                placeholder="Расскажите немного о себе..."
+                placeholder={t('profile.bioPlaceholder')}
                 rows={3}
                 className="w-full rounded-xl px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009696] resize-none"
                 style={{
@@ -512,12 +515,12 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
               {saving ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Сохранение...
+                  {t('profile.saving')}
                 </>
               ) : (
                 <>
                   <Save className="h-5 w-5" />
-                  Сохранить профиль
+                  {t('profile.saveProfile')}
                 </>
               )}
             </button>
