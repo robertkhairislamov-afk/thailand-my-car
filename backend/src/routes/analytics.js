@@ -73,6 +73,35 @@ router.post("/track", async (req, res) => {
   }
 });
 
+// Alias для совместимости с фронтендом
+router.post("/pageview", async (req, res) => {
+  try {
+    const { page, referrer } = req.body;
+
+    // Получаем реальный IP
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim()
+      || req.headers["x-real-ip"]
+      || req.connection.remoteAddress
+      || "unknown";
+
+    const userAgent = req.headers["user-agent"] || "";
+
+    // Получаем гео-данные
+    const geo = await getGeoData(ip);
+
+    // Сохраняем в БД
+    await pool.query(`
+      INSERT INTO page_views (ip_address, country, country_code, city, page, referrer, user_agent)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [ip, geo.country, geo.countryCode, geo.city, page || "/", referrer || null, userAgent]);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Track error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ============ ADMIN ROUTES ============
 
 // Получить общую статистику

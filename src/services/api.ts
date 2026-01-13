@@ -1,4 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL || '';
+const IS_TESTNET = import.meta.env.VITE_BSC_TESTNET === 'true';
+const NETWORK: 'mainnet' | 'testnet' = IS_TESTNET ? 'testnet' : 'mainnet';
 
 interface ApiResponse<T> {
   data?: T;
@@ -20,6 +22,10 @@ class ApiService {
   clearToken() {
     this.token = null;
     localStorage.removeItem('auth_token');
+  }
+
+  getToken() {
+    return this.token;
   }
 
   private async request<T>(
@@ -55,15 +61,22 @@ class ApiService {
   }
 
   // Auth
-  async connectWallet(walletAddress: string) {
-    return this.request<{ token: string; user: any }>('/api/auth/wallet/connect', {
+  async getWalletNonce(walletAddress: string) {
+    return this.request<{ message: string; nonce: string }>('/api/auth/wallet/nonce', {
       method: 'POST',
       body: JSON.stringify({ walletAddress }),
     });
   }
 
+  async connectWallet(walletAddress: string, signature?: string) {
+    return this.request<{ accessToken: string; refreshToken: string; expiresIn: number; user: any }>('/api/auth/wallet/connect', {
+      method: 'POST',
+      body: JSON.stringify({ walletAddress, signature }),
+    });
+  }
+
   async adminLogin(email: string, password: string) {
-    return this.request<{ token: string; admin: any }>('/api/auth/admin/login', {
+    return this.request<{ accessToken: string; refreshToken: string; admin: any }>('/api/auth/admin/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -175,7 +188,79 @@ class ApiService {
   }
 
   async getMyInvestments() {
-    return this.request<any[]>('/api/investments/my');
+    return this.request<any[]>(`/api/investments/my?network=${NETWORK}`);
+  }
+
+  // Profile
+  async getProfile(network: 'mainnet' | 'testnet' = 'mainnet') {
+    return this.request<{
+      profile: {
+        id: string;
+        walletAddress: string;
+        email: string | null;
+        name: string | null;
+        telegram: string | null;
+        whatsapp: string | null;
+        instagram: string | null;
+        twitter: string | null;
+        facebook: string | null;
+        avatarUrl: string | null;
+        bio: string | null;
+        preferredLanguage: string | null;
+        emailVerified: boolean;
+        createdAt: string;
+        lastLoginAt: string | null;
+      };
+      stats: {
+        totalInvestments: number;
+        totalInvestedUsdt: number;
+        totalInvestedBaht: number;
+        activeInvestments: number;
+      };
+    }>(`/api/profile?network=${network}`);
+  }
+
+  async updateProfile(data: {
+    name?: string;
+    email?: string;
+    telegram?: string;
+    whatsapp?: string;
+    instagram?: string;
+    twitter?: string;
+    facebook?: string;
+    bio?: string;
+    preferredLanguage?: string;
+  }) {
+    return this.request<{ success: boolean; message: string }>('/api/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Withdrawal
+  async requestWithdrawal(
+    investmentId: string,
+    withdrawalWallet?: string,
+    withdrawalType: 'earnings' | 'principal' | 'all' = 'all'
+  ) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      userWallet?: string;
+      principal: number;
+      total_earnings: number;
+      early_fee: number;
+      withdrawal_amount: number;
+      is_early: boolean;
+      months_passed: number;
+    }>(`/api/investments/withdraw-request/${investmentId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        withdrawalWallet,
+        withdrawalType,
+        network: NETWORK
+      }),
+    });
   }
 
   // Contact
@@ -264,6 +349,42 @@ class ApiService {
       byAction: { action: string; count: string }[];
       byEntity: { entity_type: string; count: string }[];
     }>('/api/admin/logs/stats');
+  }
+
+  // Withdrawal Management
+  async getAdminWithdrawals(params?: { network?: 'mainnet' | 'testnet'; page?: number; limit?: number }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request<{
+      withdrawals: any[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/api/admin/withdrawals${query ? `?${query}` : ''}`);
+  }
+
+  async processWithdrawalCrypto(investmentId: string, txHash: string) {
+    return this.request<{ success: boolean; investment: any }>(`/api/admin/withdrawals/${investmentId}/process-crypto`, {
+      method: 'POST',
+      body: JSON.stringify({ txHash }),
+    });
+  }
+
+  async processWithdrawalBank(investmentId: string, data: {
+    receiptUrl?: string;
+    bankDetails?: string;
+    notes?: string;
+  }) {
+    return this.request<{ success: boolean; investment: any }>(`/api/admin/withdrawals/${investmentId}/process-bank`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async rejectWithdrawal(investmentId: string, reason?: string) {
+    return this.request<{ success: boolean; investment: any }>(`/api/admin/withdrawals/${investmentId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
   }
 
   // Analytics

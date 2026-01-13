@@ -1,6 +1,6 @@
 import { Car, TrendingUp, Percent, ArrowUpRight } from 'lucide-react';
 import { motion, useScroll, useTransform, useMotionValueEvent, useSpring } from 'motion/react';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, memo } from 'react';
 import tmcLogo from '../../assets/TMC.webp';
 import { api } from '../../services/api';
 
@@ -19,7 +19,8 @@ interface FundraisingData {
   isActive: boolean;
 }
 
-export function Hero({ isDark, onInvestClick }: HeroProps) {
+function HeroComponent({ isDark, onInvestClick }: HeroProps) {
+  console.count('🔍 Hero render');
   // Fundraising data from API
   const [fundraising, setFundraising] = useState<FundraisingData | null>(null);
 
@@ -349,3 +350,5 @@ export function Hero({ isDark, onInvestClick }: HeroProps) {
     </div>
   );
 }
+
+export const Hero = memo(HeroComponent);

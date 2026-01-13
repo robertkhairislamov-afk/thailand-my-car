@@ -1,7 +1,10 @@
 
-  import { createRoot } from "react-dom/client";
-  import App from "./App.tsx";
-  import "./index.css";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
 
-  createRoot(document.getElementById("root")!).render(<App />);
+// Initialize Web3Modal
+import "./config/web3modal";
+
+createRoot(document.getElementById("root")!).render(<App />);
   

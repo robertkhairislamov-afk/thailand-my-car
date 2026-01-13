@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { CheckCircle, RefreshCw, Circle, Scale, Mail, Send, Youtube, AlertTriangle } from 'lucide-react';
 import { ThailandHeader } from './components/thailand/ThailandHeader';
 import { Hero } from './components/thailand/Hero';
@@ -35,6 +35,40 @@ interface TierData {
   features: string[];
 }
 
+// ✅ FIX #1: FALLBACK_TIERS вынесен из компонента - создаётся один раз!
+const FALLBACK_TIERS: TierData[] = [
+  {
+    id: 1,
+    name: 'Стейкинг',
+    description: 'Пассивный доход с гибкими условиями вывода',
+    min_investment_baht: '31900',
+    min_investment_usd: '1000',
+    duration_months: 0,
+    return_percentage: '20.4',
+    features: [
+      '1.7% в месяц (20.4% годовых)',
+      'Вывод в любой момент',
+      '5% комиссия при выводе до 6 мес',
+      'Ежемесячное начисление процентов'
+    ]
+  },
+  {
+    id: 2,
+    name: 'Доля в автомобиле',
+    description: 'Получите автомобиль в собственность или гарантированный возврат',
+    min_investment_baht: '395560',
+    min_investment_usd: '12400',
+    duration_months: 6,
+    return_percentage: null,
+    features: [
+      'Через 6 мес: +20% возврат ИЛИ ждать авто',
+      'Автомобиль в собственность после выплаты кредита',
+      'Приоритет: кто первый - тот получает авто',
+      'Можно изменить выбор до закрытия кредита'
+    ]
+  }
+];
+
 // Main App wrapper with LanguageProvider
 export default function App() {
   return (
@@ -45,6 +79,7 @@ export default function App() {
 }
 
 function AppContent() {
+  console.count('🔍 AppContent render');
   const { language, setLanguage, t } = useLanguage();
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
@@ -57,43 +92,9 @@ function AppContent() {
   useEffect(() => {
     const page = window.location.pathname + window.location.search;
     const referrer = document.referrer || undefined;
-    
+
     api.trackPageView(page, referrer).catch(() => {});
   }, []);
-
-  // Fallback tiers in case API is unavailable
-  const FALLBACK_TIERS: TierData[] = [
-    {
-      id: 1,
-      name: 'Стейкинг',
-      description: 'Пассивный доход с гибкими условиями вывода',
-      min_investment_baht: '31900',
-      min_investment_usd: '1000',
-      duration_months: 0,
-      return_percentage: '20.4',
-      features: [
-        '1.7% в месяц (20.4% годовых)',
-        'Вывод в любой момент',
-        '5% комиссия при выводе до 6 мес',
-        'Ежемесячное начисление процентов'
-      ]
-    },
-    {
-      id: 2,
-      name: 'Доля в автомобиле',
-      description: 'Получите автомобиль в собственность или гарантированный возврат',
-      min_investment_baht: '395560',
-      min_investment_usd: '12400',
-      duration_months: 6,
-      return_percentage: null,
-      features: [
-        'Через 6 мес: +20% возврат ИЛИ ждать авто',
-        'Автомобиль в собственность после выплаты кредита',
-        'Приоритет: кто первый - тот получает авто',
-        'Можно изменить выбор до закрытия кредита'
-      ]
-    }
-  ];
 
   // Load tiers from API with fallback
   useEffect(() => {
@@ -108,7 +109,12 @@ function AppContent() {
     loadTiers();
   }, []);
 
-  const handleInvest = (tierId: number) => {
+  // ✅ FIX #2: Мемоизировать callback для ThailandHeader (остановит бесконечный цикл!)
+  const handleWalletChange = useCallback((address: string | null) => {
+    setWalletAddress(address);
+  }, []);
+
+  const handleInvest = useCallback((tierId: number) => {
     if (!walletAddress) {
       alert(t('alert.connectWallet'));
       return;
@@ -119,14 +125,14 @@ function AppContent() {
       setSelectedTier(tier);
       setIsInvestModalOpen(true);
     }
-  };
+  }, [walletAddress, tiers, t]);
 
-  const handleInvestSuccess = () => {
+  const handleInvestSuccess = useCallback(() => {
     // Refresh data or show notification
     console.log('Investment created successfully');
-  };
+  }, []);
 
-  const scrollToInvest = () => {
+  const scrollToInvest = useCallback(() => {
     setActiveTab('invest');
     // Scroll to investment section
     setTimeout(() => {
@@ -135,9 +141,9 @@ function AppContent() {
         investSection.scrollIntoView({ behavior: 'smooth' });
       }
     }, 100);
-  };
+  }, []);
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
 
     // Scroll to corresponding section
@@ -158,7 +164,7 @@ function AppContent() {
     } else if (tab === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
+  }, []);
 
   return (
     <div className="min-h-screen relative overflow-hidden transition-colors duration-500"
@@ -207,15 +213,15 @@ function AppContent() {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           walletAddress={walletAddress}
-          onWalletChange={setWalletAddress}
+          onWalletChange={handleWalletChange}
           language={language}
           onLanguageChange={setLanguage}
         />
 
         <main>
-          {/* Hero Section - Always visible */}
-          {(activeTab === 'home' || activeTab === 'about' || activeTab === 'invest') && (
-            <Hero 
+          {/* ✅ FIX #9: Hero только на home (остановит видео на других табах!) */}
+          {activeTab === 'home' && (
+            <Hero
               isDark={isDark}
               onInvestClick={scrollToInvest}
             />
