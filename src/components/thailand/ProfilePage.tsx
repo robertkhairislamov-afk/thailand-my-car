@@ -6,6 +6,7 @@ import {
   Save, Loader2, CheckCircle, AlertCircle,
   TrendingUp, DollarSign, Clock, ChevronLeft
 } from 'lucide-react';
+import { api } from '../../services/api';
 
 interface ProfilePageProps {
   walletAddress: string | null;
@@ -54,29 +55,74 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
   });
 
   useEffect(() => {
-    if (walletAddress) {
-      // Mock data for now
-      setProfile({
-        id: '1',
-        walletAddress,
-        email: null,
-        name: null,
-        telegram: null,
-        whatsapp: null,
-        instagram: null,
-        twitter: null,
-        facebook: null,
-        bio: null,
-        createdAt: new Date().toISOString()
-      });
-      setStats({
-        totalInvestments: 0,
-        totalInvestedUsdt: 0,
-        totalInvestedBaht: 0,
-        activeInvestments: 0
-      });
-      setLoading(false);
-    }
+    const loadProfile = async () => {
+      if (!walletAddress) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await api.getProfile();
+
+        if (response.error) {
+          setError(response.error);
+          // Fallback to basic profile if API fails
+          setProfile({
+            id: '1',
+            walletAddress,
+            email: null,
+            name: null,
+            telegram: null,
+            whatsapp: null,
+            instagram: null,
+            twitter: null,
+            facebook: null,
+            bio: null,
+            createdAt: new Date().toISOString()
+          });
+          setStats({
+            totalInvestments: 0,
+            totalInvestedUsdt: 0,
+            totalInvestedBaht: 0,
+            activeInvestments: 0
+          });
+        } else if (response.data) {
+          const { profile: profileData, stats: statsData } = response.data;
+          setProfile({
+            id: profileData.id,
+            walletAddress: profileData.walletAddress,
+            email: profileData.email,
+            name: profileData.name,
+            telegram: profileData.telegram,
+            whatsapp: profileData.whatsapp,
+            instagram: profileData.instagram,
+            twitter: profileData.twitter,
+            facebook: profileData.facebook,
+            bio: profileData.bio,
+            createdAt: profileData.createdAt
+          });
+          setStats(statsData);
+          // Pre-fill form with existing data
+          setFormData({
+            name: profileData.name || '',
+            email: profileData.email || '',
+            telegram: profileData.telegram || '',
+            whatsapp: profileData.whatsapp || '',
+            instagram: profileData.instagram || '',
+            twitter: profileData.twitter || '',
+            facebook: profileData.facebook || '',
+            bio: profileData.bio || ''
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load profile:', err);
+        setError('Не удалось загрузить профиль');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
   }, [walletAddress]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,12 +131,30 @@ export function ProfilePage({ walletAddress, onBack, isDark = true }: ProfilePag
     setError(null);
     setSuccess(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      setSuccess('Профиль успешно обновлен');
+    try {
+      const response = await api.updateProfile({
+        name: formData.name || undefined,
+        email: formData.email || undefined,
+        telegram: formData.telegram || undefined,
+        whatsapp: formData.whatsapp || undefined,
+        instagram: formData.instagram || undefined,
+        twitter: formData.twitter || undefined,
+        facebook: formData.facebook || undefined,
+        bio: formData.bio || undefined
+      });
+
+      if (response.error) {
+        setError(response.error);
+      } else {
+        setSuccess('Профиль успешно обновлен');
+        setTimeout(() => setSuccess(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      setError('Не удалось сохранить профиль');
+    } finally {
       setSaving(false);
-      setTimeout(() => setSuccess(null), 3000);
-    }, 1000);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

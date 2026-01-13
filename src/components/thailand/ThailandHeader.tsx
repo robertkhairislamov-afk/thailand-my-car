@@ -226,7 +226,9 @@ export function ThailandHeader({
     { id: 'about', label: t('header.about') },
     { id: 'invest', label: t('header.invest') },
     { id: 'dashboard', label: t('header.dashboard') },
-    { id: 'roadmap', label: t('header.roadmap') }
+    { id: 'roadmap', label: t('header.roadmap') },
+    // Profile показывается только когда кошелёк подключён
+    ...(walletAddress ? [{ id: 'profile', label: t('header.profile') }] : [])
   ];
 
   return (

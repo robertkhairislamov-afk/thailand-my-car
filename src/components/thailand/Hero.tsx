@@ -33,6 +33,8 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
   // Use API data with fallbacks
   const targetUSD = fundraising?.target.usd || 580000;
   const currentUSD = fundraising?.current.usd || 510400;
+  const targetBaht = fundraising?.target.baht || 2500000;
+  const currentBaht = fundraising?.current.baht || 510400;
   const progress = fundraising?.progress || (currentUSD / targetUSD) * 100;
   const availableCars = fundraising?.cars?.available || 8;
 
@@ -173,8 +175,11 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                     <div className="text-2xl md:text-3xl mb-1" style={{ color: '#FFFFFF', fontWeight: 700 }}>
                       ${currentUSD.toLocaleString()}
                     </div>
+                    <div className="text-xs mb-1" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                      ฿{currentBaht.toLocaleString()}
+                    </div>
                     <div className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
-                      Собрано из ${targetUSD.toLocaleString()}
+                      Собрано из ${targetUSD.toLocaleString()} <span className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>(฿{targetBaht.toLocaleString()})</span>
                     </div>
                   </div>
                   <div className="text-3xl" style={{ color: '#FFFFFF', fontWeight: 700 }}>
