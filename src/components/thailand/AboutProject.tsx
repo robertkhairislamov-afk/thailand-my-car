@@ -36,16 +36,25 @@ export function AboutProject({ isDark }: AboutProjectProps) {
     {
       cars: '3 АВТО',
       label: 'Старт',
+      year: '2022',
       active: false
     },
     {
       cars: '5 АВТО',
       label: 'Рост',
+      year: '2023',
+      active: false
+    },
+    {
+      cars: '6 АВТО',
+      label: 'Развитие',
+      year: '2024',
       active: false
     },
     {
       cars: '8 АВТО',
       label: 'Сейчас',
+      year: '2025',
       active: true
     }
   ];
@@ -237,7 +246,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
                   rotateX: 8,
                   transition: { duration: 0.3 }
                 }}
-                className="rounded-2xl p-4 sm:p-6 md:p-8 backdrop-blur-xl border text-center w-[140px] sm:w-[160px] md:w-[200px] h-[140px] sm:h-[160px] md:h-[200px] flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden"
+                className="rounded-2xl p-4 pt-6 sm:p-6 md:p-8 backdrop-blur-xl border text-center w-[110px] sm:w-[150px] md:w-[180px] h-auto min-h-[130px] sm:min-h-[150px] md:min-h-[180px] flex flex-col items-center justify-start transition-all duration-300 relative overflow-visible"
                 style={{
                   background: item.active
                     ? 'linear-gradient(135deg, rgba(255, 200, 80, 0.2) 0%, rgba(0, 150, 150, 0.2) 100%)'
@@ -266,7 +275,7 @@ export function AboutProject({ isDark }: AboutProjectProps) {
                 )}
                 
                 {/* Growth Circle with TrendingUp Icon */}
-                <div className="flex items-center justify-center mb-2 sm:mb-4 relative z-10">
+                <div className="flex items-center justify-center mb-2 sm:mb-3 relative z-10">
                   <motion.div
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
@@ -274,9 +283,9 @@ export function AboutProject({ isDark }: AboutProjectProps) {
                     transition={{ duration: 0.6, delay: index * 0.15 + 0.2 }}
                     className="rounded-full flex items-center justify-center"
                     style={{
-                      width: `${40 + index * 12}px`,
-                      height: `${40 + index * 12}px`,
-                      background: item.active 
+                      width: `${32 + index * 6}px`,
+                      height: `${32 + index * 6}px`,
+                      background: item.active
                         ? 'linear-gradient(135deg, #FFC850, #FFD700)'
                         : 'linear-gradient(135deg, #40E0D0, #00CED1)',
                       border: `2px solid ${item.active ? '#FFC850' : '#40E0D0'}`,
@@ -285,42 +294,42 @@ export function AboutProject({ isDark }: AboutProjectProps) {
                         : '0 0 25px rgba(64, 224, 208, 0.6)'
                     }}
                   >
-                    <TrendingUp 
-                      className="text-white" 
-                      style={{ 
-                        width: `${20 + index * 5}px`,
-                        height: `${20 + index * 5}px`,
+                    <TrendingUp
+                      className="text-white"
+                      style={{
+                        width: `${16 + index * 3}px`,
+                        height: `${16 + index * 3}px`,
                         filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
-                      }} 
+                      }}
                     />
                   </motion.div>
                 </div>
 
-                <div className="text-xl sm:text-2xl mb-1 sm:mb-2 relative z-10" style={{ 
+                <div className="text-base sm:text-xl md:text-2xl mb-0.5 sm:mb-1 relative z-10" style={{
                   color: item.active ? '#FFC850' : isDark ? '#FFFAF0' : '#143C50',
                   fontWeight: 700,
                   textShadow: item.active ? '0 0 20px rgba(255, 200, 80, 0.5)' : 'none'
                 }}>
                   {item.cars}
                 </div>
-                <div className="text-xs sm:text-sm mb-1 sm:mb-2 relative z-10" style={{ 
+                <div className="text-[10px] sm:text-xs md:text-sm mb-0.5 sm:mb-1 relative z-10" style={{
                   color: item.active ? '#FFC850' : isDark ? '#FFFAF0' : '#143C50',
                   opacity: 0.8
                 }}>
                   {item.label}
                 </div>
-                <div className="text-sm sm:text-base relative z-10" style={{ 
+                <div className="text-xs sm:text-sm md:text-base relative z-10" style={{
                   color: item.active ? '#FFC850' : isDark ? '#40E0D0' : '#009696',
                   opacity: 1,
                   fontWeight: 700,
                   textShadow: '0 0 15px rgba(64, 224, 208, 0.4)'
                 }}>
-                  {index === 0 ? '2022' : index === 1 ? '2023' : '2025'}
+                  {item.year}
                 </div>
               </motion.div>
               
               {index < timeline.length - 1 && (
-                <div className="hidden md:block w-20 h-1 relative" style={{ overflow: 'visible' }}>
+                <div className="hidden md:block w-12 lg:w-16 h-1 relative" style={{ overflow: 'visible' }}>
                   <motion.div 
                     initial={{ scaleX: 0 }}
                     whileInView={{ scaleX: 1 }}
