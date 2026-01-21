@@ -1,12 +1,14 @@
 import { Car, TrendingUp, Percent, ArrowUpRight } from 'lucide-react';
-import { motion, useScroll, useTransform, useMotionValueEvent, useSpring } from 'motion/react';
+import { motion, useScroll, useTransform, useMotionValueEvent, useSpring, AnimatePresence } from 'motion/react';
 import { useRef, useState, useEffect, memo } from 'react';
 import tmcLogo from '../../assets/TMC.webp';
 import { api } from '../../services/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface HeroProps {
   isDark: boolean;
   onInvestClick: () => void;
+  walletConnected?: boolean;
 }
 
 interface FundraisingData {
@@ -19,8 +21,9 @@ interface FundraisingData {
   isActive: boolean;
 }
 
-function HeroComponent({ isDark, onInvestClick }: HeroProps) {
-  console.count('🔍 Hero render');
+function HeroComponent({ isDark, onInvestClick, walletConnected = false }: HeroProps) {
+  const { t } = useLanguage();
+
   // Fundraising data from API
   const [fundraising, setFundraising] = useState<FundraisingData | null>(null);
 
@@ -114,32 +117,32 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                   boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 25px 50px rgba(0, 0, 0, 0.3)'
                 }}
               >
-                <motion.h1 
+                <motion.h1
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.1 }}
                   className="text-4xl md:text-5xl lg:text-6xl mb-6"
-                  style={{ 
+                  style={{
                     color: '#FFFFFF',
                     fontWeight: 700,
                     lineHeight: 1.2
                   }}
                 >
-                  Инвестируйте<br />
-                  в рентал-бизнес
+                  {t('hero.mainTitle')}<br />
+                  {t('hero.mainTitleLine2')}
                 </motion.h1>
 
-                <motion.p 
+                <motion.p
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.2 }}
                   className="text-base md:text-lg mb-8"
-                  style={{ 
+                  style={{
                     color: 'rgba(255, 255, 255, 0.85)'
                   }}
                 >
-                  {availableCars} автомобилей Toyota • От $1,000 • 1.7%/мес<br />
-                  или авто в собственность
+                  {availableCars} {t('hero.carsInfo')}<br />
+                  {t('hero.orOwnership')}
                 </motion.p>
 
                 <motion.button
@@ -154,20 +157,21 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                     fontWeight: 600
                   }}
                 >
-                  Инвестировать сейчас
+                  {t('hero.investNow')}
                 </motion.button>
               </motion.div>
 
-              {/* Progress Bar Card */}
-              <motion.div 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
+              {/* Progress Bar Card - Always rendered, visibility controlled by wallet connection */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: walletConnected ? 1 : 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
                 className="rounded-2xl p-6 backdrop-blur-xl border"
                 style={{
                   background: 'rgba(35, 60, 65, 0.5)',
                   borderColor: 'rgba(0, 150, 150, 0.4)',
-                  boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 25px 50px rgba(0, 0, 0, 0.3)'
+                  boxShadow: '0 0 30px rgba(64, 224, 208, 0.3), 0 0 60px rgba(0, 206, 209, 0.15), 0 25px 50px rgba(0, 0, 0, 0.3)',
+                  pointerEvents: walletConnected ? 'auto' : 'none'
                 }}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -179,7 +183,7 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                       ฿{currentBaht.toLocaleString()}
                     </div>
                     <div className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
-                      Собрано из ${targetUSD.toLocaleString()} <span className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>(฿{targetBaht.toLocaleString()})</span>
+                      {t('hero.collected')} ${targetUSD.toLocaleString()} <span className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>(฿{targetBaht.toLocaleString()})</span>
                     </div>
                   </div>
                   <div className="text-3xl" style={{ color: '#FFFFFF', fontWeight: 700 }}>
@@ -191,10 +195,10 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                 <div className="h-3 rounded-full overflow-hidden" style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.15)'
                 }}>
-                  <motion.div 
+                  <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 1.5, delay: 0.6, ease: "easeOut" }}
+                    animate={{ width: walletConnected ? `${progress}%` : '0%' }}
+                    transition={{ duration: 1.5, delay: 0.4, ease: "easeOut" }}
                     className="h-full rounded-full"
                     style={{
                       background: 'linear-gradient(90deg, #40E0D0 0%, #00CED1 100%)'
@@ -248,7 +252,7 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                     {availableCars}
                   </div>
                   <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
-                    Cars
+                    {t('hero.cars')}
                   </div>
                 </div>
               </div>
@@ -293,10 +297,10 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                 </div>
                 <div className="text-center">
                   <div className="text-lg mb-0.5 leading-tight" style={{ color: '#FFFFFF', fontWeight: 700 }}>
-                    1.7%/мес.
+                    1.7%{t('hero.monthlyReturn')}
                   </div>
                   <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
-                    доход
+                    {t('hero.income')}
                   </div>
                 </div>
               </div>
@@ -341,7 +345,7 @@ function HeroComponent({ isDark, onInvestClick }: HeroProps) {
                 </div>
                 <div className="text-center">
                   <div className="text-xs mb-0.5" style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
-                    Прогноз
+                    {t('hero.forecast')}
                   </div>
                   <div className="text-xl" style={{ color: '#FFFFFF', fontWeight: 700 }}>
                     +20%

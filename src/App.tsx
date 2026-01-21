@@ -38,7 +38,7 @@ interface TierData {
 // ✅ FIX #1: FALLBACK_TIERS вынесен из компонента - создаётся один раз!
 const FALLBACK_TIERS: TierData[] = [
   {
-    id: 1,
+    id: 3,  // ID из базы данных
     name: 'Стейкинг',
     description: 'Пассивный доход с гибкими условиями вывода',
     min_investment_baht: '31900',
@@ -53,7 +53,7 @@ const FALLBACK_TIERS: TierData[] = [
     ]
   },
   {
-    id: 2,
+    id: 4,  // ID из базы данных
     name: 'Доля в автомобиле',
     description: 'Получите автомобиль в собственность или гарантированный возврат',
     min_investment_baht: '395560',
@@ -78,15 +78,34 @@ export default function App() {
   );
 }
 
+// ✅ FIX: Функция для парсинга URL в tab
+const getTabFromPath = (pathname: string): string => {
+  const path = pathname.replace(/^\/thailand-my-car\/?/, '/').replace(/\/$/, '') || '/';
+  const validTabs = ['home', 'about', 'invest', 'dashboard', 'profile', 'roadmap', 'contact'];
+  const tab = path === '/' ? 'home' : path.slice(1);
+  return validTabs.includes(tab) ? tab : 'home';
+};
+
 function AppContent() {
-  console.count('🔍 AppContent render');
   const { language, setLanguage, t } = useLanguage();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState('home');
+  // ✅ FIX: Инициализируем activeTab из URL
+  const [activeTab, setActiveTab] = useState(() => getTabFromPath(window.location.pathname));
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [tiers, setTiers] = useState<TierData[]>([]);
   const [selectedTier, setSelectedTier] = useState<TierData | null>(null);
   const [isInvestModalOpen, setIsInvestModalOpen] = useState(false);
+
+  // ✅ FIX: Слушаем browser back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      const newTab = getTabFromPath(window.location.pathname);
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Track page view
   useEffect(() => {
@@ -129,7 +148,6 @@ function AppContent() {
 
   const handleInvestSuccess = useCallback(() => {
     // Refresh data or show notification
-    console.log('Investment created successfully');
   }, []);
 
   const scrollToInvest = useCallback(() => {
@@ -145,6 +163,13 @@ function AppContent() {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
+
+    // ✅ FIX: Обновляем URL без перезагрузки страницы
+    const basePath = window.location.pathname.includes('/thailand-my-car') ? '/thailand-my-car' : '';
+    const newPath = tab === 'home' ? basePath || '/' : `${basePath}/${tab}`;
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({ tab }, '', newPath);
+    }
 
     // Scroll to corresponding section
     if (tab === 'about') {
@@ -224,6 +249,7 @@ function AppContent() {
             <Hero
               isDark={isDark}
               onInvestClick={scrollToInvest}
+              walletConnected={!!walletAddress}
             />
           )}
 
@@ -393,7 +419,7 @@ function AppContent() {
                 color: isDark ? '#FFC850' : '#143C50',
                 fontWeight: 600
               }}>
-                Контакты
+                {t('footer.contacts')}
               </h4>
               <div className="flex items-center justify-center gap-4">
                 <a
@@ -457,16 +483,18 @@ function AppContent() {
       </div>
 
       {/* Invest Modal */}
-      <Suspense fallback={null}>
-        <InvestModal
-          isOpen={isInvestModalOpen}
-          onClose={() => setIsInvestModalOpen(false)}
-          tier={selectedTier}
-          walletAddress={walletAddress || ''}
-          isDark={isDark}
-          onSuccess={handleInvestSuccess}
-        />
-      </Suspense>
+      {isInvestModalOpen && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full"></div></div>}>
+          <InvestModal
+            isOpen={isInvestModalOpen}
+            onClose={() => setIsInvestModalOpen(false)}
+            tier={selectedTier}
+            walletAddress={walletAddress || ''}
+            isDark={isDark}
+            onSuccess={handleInvestSuccess}
+          />
+        </Suspense>
+      )}
 
       {/* Cookie Consent Banner */}
       <CookieBanner />
