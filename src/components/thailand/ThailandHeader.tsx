@@ -30,7 +30,6 @@ export function ThailandHeader({
   language,
   onLanguageChange
 }: ThailandHeaderProps) {
-  console.count('🔍 ThailandHeader render');
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSigningMessage, setIsSigningMessage] = useState(false);
@@ -64,17 +63,23 @@ export function ThailandHeader({
 
   // ✅ FIX: Ref для предотвращения повторных авторизаций
   const isAuthenticatingRef = useRef(false);
-  const lastAuthAddressRef = useRef<string | null>(null);
+  // ✅ FIX: Инициализируем из localStorage для сохранения между перезагрузками
+  const lastAuthAddressRef = useRef<string | null>(localStorage.getItem('last_auth_address'));
   const currentAuthAddressRef = useRef<string | null>(null);
+  const isDisconnectingRef = useRef(false); // Флаг отключения
 
   // Sync Web3Modal state with parent component
   useEffect(() => {
+    // ✅ FIX: Если идёт отключение — не делаем ничего
+    if (isDisconnectingRef.current) {
+      return;
+    }
+
     // ✅ FIX: Синхронные проверки ДО async функции
 
     // Если кошелек отключен
     if (!isConnected || !address) {
       if (walletAddress) {
-        console.log('[ThailandHeader] Wallet disconnected, clearing state');
         api.clearToken();
         onWalletChange(null);
         lastAuthAddressRef.current = null;
@@ -84,26 +89,39 @@ export function ThailandHeader({
       return;
     }
 
+    // ✅ FIX: Определяем lowerAddress в начале для использования во всех проверках
+    const lowerAddress = address.toLowerCase();
+
     // Проверяем токен напрямую из localStorage
     const existingToken = localStorage.getItem('auth_token');
     if (existingToken) {
-      console.log('[ThailandHeader] Token exists, setting wallet address');
-      if (walletAddress !== address) {
-        onWalletChange(address);
+      // ✅ FIX: Проверяем, что токен для ЭТОГО адреса
+      // Если адрес изменился - нужна реавторизация
+      if (lastAuthAddressRef.current && lastAuthAddressRef.current !== lowerAddress) {
+        // Кошелёк переключён - очищаем старый токен
+        api.clearToken();
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('last_auth_address');
+        lastAuthAddressRef.current = null;
+        // Продолжаем для новой авторизации
+      } else {
+        // Токен есть и адрес тот же - просто обновляем состояние
+        if (!lastAuthAddressRef.current) {
+          lastAuthAddressRef.current = lowerAddress;
+          localStorage.setItem('last_auth_address', lowerAddress);
+        }
+        if (walletAddress !== address) {
+          onWalletChange(address);
+        }
+        return;
       }
-      return;
     }
 
-    // ✅ FIX: Проверяем флаги СИНХРОННО до запуска async
-    const lowerAddress = address.toLowerCase();
-
     if (isAuthenticatingRef.current) {
-      console.log('[ThailandHeader] Auth already in progress, skipping');
       return;
     }
 
     if (lastAuthAddressRef.current === lowerAddress) {
-      console.log('[ThailandHeader] Already authenticated this address, skipping');
       if (walletAddress !== address) {
         onWalletChange(address);
       }
@@ -111,7 +129,6 @@ export function ThailandHeader({
     }
 
     if (currentAuthAddressRef.current === lowerAddress) {
-      console.log('[ThailandHeader] Auth in progress for this address, skipping');
       return;
     }
 
@@ -124,24 +141,18 @@ export function ThailandHeader({
       let authSuccess = false;
 
       try {
-        console.log('[ThailandHeader] Starting authentication for:', address);
-
         // Step 1: Get nonce from server
         const nonceResponse = await api.getWalletNonce(address);
 
         if (nonceResponse.error || !nonceResponse.data?.message) {
-          console.error('[ThailandHeader] Failed to get nonce:', nonceResponse.error);
           // Fallback: подключение без подписи
           const response = await api.connectWallet(address);
           if (response.data?.accessToken) {
-            console.log('[ThailandHeader] Auth successful (no signature)');
             api.setToken(response.data.accessToken);
             if (response.data.refreshToken) {
               localStorage.setItem('refresh_token', response.data.refreshToken);
             }
             authSuccess = true;
-          } else {
-            console.error('[ThailandHeader] Auth failed:', response.error);
           }
         } else {
           // Step 2: Sign the message
@@ -152,9 +163,7 @@ export function ThailandHeader({
               const provider = new BrowserProvider(walletProvider);
               const signer = await provider.getSigner();
               signature = await signer.signMessage(nonceResponse.data.message);
-              console.log('[ThailandHeader] Message signed successfully');
             } catch (signError) {
-              console.error('[ThailandHeader] Failed to sign message:', signError);
               // Продолжаем без подписи
             }
           }
@@ -163,18 +172,15 @@ export function ThailandHeader({
           const response = await api.connectWallet(address, signature || undefined);
 
           if (response.data?.accessToken) {
-            console.log('[ThailandHeader] Auth successful', signature ? '(with signature)' : '(no signature)');
             api.setToken(response.data.accessToken);
             if (response.data.refreshToken) {
               localStorage.setItem('refresh_token', response.data.refreshToken);
             }
             authSuccess = true;
-          } else {
-            console.error('[ThailandHeader] Auth failed:', response.error);
           }
         }
       } catch (error) {
-        console.error('[ThailandHeader] Auth exception:', error);
+        // Auth exception
       } finally {
         setIsSigningMessage(false);
         isAuthenticatingRef.current = false;
@@ -183,14 +189,14 @@ export function ThailandHeader({
 
       // Обновляем состояние
       if (authSuccess) {
-        console.log('[ThailandHeader] Setting wallet address - auth confirmed');
         lastAuthAddressRef.current = lowerAddress;
+        localStorage.setItem('last_auth_address', lowerAddress);
         onWalletChange(address);
       } else {
-        console.error('[ThailandHeader] Auth failed, disconnecting wallet');
         lastAuthAddressRef.current = null;
+        localStorage.removeItem('last_auth_address');
         disconnect();
-        alert('Не удалось авторизовать кошелек. Попробуйте ещё раз.');
+        alert(t('header.authError'));
       }
     };
 
@@ -207,14 +213,25 @@ export function ThailandHeader({
   };
 
   const disconnectWallet = () => {
-    // ✅ FIX: Сбрасываем все ref при отключении
+    // ✅ FIX: Устанавливаем флаг отключения ПЕРЕД disconnect()
+    isDisconnectingRef.current = true;
     lastAuthAddressRef.current = null;
+    localStorage.removeItem('last_auth_address');
     isAuthenticatingRef.current = false;
     currentAuthAddressRef.current = null;
-    disconnect();
+
+    // Сначала очищаем токены
     api.clearToken();
     localStorage.removeItem('refresh_token');
     onWalletChange(null);
+
+    // Потом отключаем кошелёк
+    disconnect();
+
+    // Сбрасываем флаг через небольшую задержку
+    setTimeout(() => {
+      isDisconnectingRef.current = false;
+    }, 1000);
   };
 
   const formatAddress = (addr: string) => {
@@ -270,7 +287,7 @@ export function ThailandHeader({
                 color: 'rgb(255, 250, 240)',
                 opacity: 0.7
               }}>
-                Инвестиции в рентал
+                {t('header.subtitle')}
               </div>
             </div>
           </div>
@@ -417,7 +434,7 @@ export function ThailandHeader({
                 }}
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Подпись...</span>
+                <span>{t('header.signing')}</span>
               </div>
             ) : walletAddress ? (
               <div className="hidden md:flex items-center gap-2">
@@ -458,7 +475,7 @@ export function ThailandHeader({
                 aria-label="Подключить кошелёк"
               >
                 <Wallet className="w-4 h-4" />
-                <span>Login</span>
+                <span>{t('header.login')}</span>
               </button>
             )}
 
@@ -527,12 +544,12 @@ export function ThailandHeader({
                 {isDark ? (
                   <>
                     <Sun className="w-5 h-5" style={{ color: '#FFC850' }} />
-                    <span className="text-sm font-medium">Светлая</span>
+                    <span className="text-sm font-medium">{t('header.lightTheme')}</span>
                   </>
                 ) : (
                   <>
                     <Moon className="w-5 h-5" style={{ color: '#143C50' }} />
-                    <span className="text-sm font-medium">Темная</span>
+                    <span className="text-sm font-medium">{t('header.darkTheme')}</span>
                   </>
                 )}
               </button>
@@ -566,7 +583,7 @@ export function ThailandHeader({
                 }}
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Подпись...</span>
+                <span>{t('header.signing')}</span>
               </div>
             ) : walletAddress ? (
               <div className="space-y-2">
@@ -598,7 +615,7 @@ export function ThailandHeader({
                   }}
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Отключить</span>
+                  <span>{t('header.disconnect')}</span>
                 </button>
               </div>
             ) : (
@@ -615,7 +632,7 @@ export function ThailandHeader({
                 }}
               >
                 <Wallet className="w-4 h-4" />
-                <span>Вход...</span>
+                <span>{t('header.login')}</span>
               </button>
             )}
           </div>

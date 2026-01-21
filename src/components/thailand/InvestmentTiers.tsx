@@ -1,5 +1,6 @@
 import { TrendingUp, Clock, Award, Vote, Car, DollarSign, Percent, Check } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface InvestmentTiersProps {
   isDark: boolean;
@@ -8,10 +9,11 @@ interface InvestmentTiersProps {
 }
 
 export function InvestmentTiers({ isDark, walletConnected, onInvest }: InvestmentTiersProps) {
-  
+  const { t } = useLanguage();
+
   const handleInvest = (tier: number) => {
     if (!walletConnected) {
-      alert('Пожалуйста, подключите кошелек для инвестирования');
+      alert(t('alert.connectWallet'));
       return;
     }
     onInvest(tier);
@@ -19,29 +21,29 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
   
   const tiers = [
     {
-      id: 1,
-      name: 'Стейкинг',
-      badge: 'до 1.7%/мес',
-      description: 'Пассивный доход с гибкими условиями вывода',
-      subtitle: '8 авто осталось',
+      id: 3,
+      name: t('tiers.staking'),
+      badge: t('tiers.stakingBadge'),
+      description: t('tiers.stakingDesc'),
+      subtitle: `8 ${t('tiers.carsLeft')}`,
       minInvestment: {
         baht: 31900,
         usd: 1000,
         usdt: 1000
       },
       features: [
-        '1.7% в месяц (20.4% годовых)',
-        'Вывод в любой момент',
-        '5% комиссия при выводе до 6 мес',
-        'Ежемесячное начисление процентов'
+        t('tiers.stakingFeature1'),
+        t('tiers.stakingFeature2'),
+        t('tiers.stakingFeature3'),
+        t('tiers.stakingFeature4')
       ],
       color: '#40E0D0'
     },
     {
-      id: 2,
-      name: 'Доля в автомобиле',
+      id: 4,
+      name: t('tiers.carShare'),
       badge: null,
-      description: 'Получите автомобиль в собственность или гарантированный возврат',
+      description: t('tiers.carShareDesc'),
       subtitle: null,
       minInvestment: {
         baht: 395560,
@@ -49,10 +51,10 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
         usdt: 12400
       },
       features: [
-        'Через 6 мес: +20% возврат ИЛИ ждать авто',
-        'Автомобиль в собственность после выплаты кредита',
-        'Приоритет: кто первый - тот получает авто',
-        'Можно изменить выбор до закрытия кредита'
+        t('tiers.carShareFeature1'),
+        t('tiers.carShareFeature2'),
+        t('tiers.carShareFeature3'),
+        t('tiers.carShareFeature4')
       ],
       color: '#FFC850'
     }
@@ -81,7 +83,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
             filter: 'drop-shadow(0 0 20px rgba(255, 200, 80, 0.4))'
           }}
         >
-          Варианты участия
+          {t('tiers.options')}
         </h2>
         <div 
           className="w-32 h-1 mx-auto mb-6 rounded-full"
@@ -90,12 +92,20 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
             boxShadow: '0 0 20px rgba(64, 224, 208, 0.5)'
           }}
         />
-        <p className="text-lg md:text-xl max-w-2xl mx-auto" style={{ 
+        <p className="text-lg md:text-xl max-w-2xl mx-auto mb-4" style={{
           color: isDark ? '#FFFAF0' : '#143C50',
           opacity: 0.8,
           lineHeight: 1.6
         }}>
-          Выберите подходящий вариант инвестирования
+          {t('tiers.subtitle')}
+        </p>
+        {/* Legal disclaimer - qualified investors */}
+        <p className="text-sm max-w-2xl mx-auto px-4 py-2 rounded-lg" style={{
+          color: '#FFC850',
+          backgroundColor: isDark ? 'rgba(255, 200, 80, 0.1)' : 'rgba(255, 200, 80, 0.15)',
+          border: '1px solid rgba(255, 200, 80, 0.3)'
+        }}>
+          {t('tiers.qualifiedInvestors')}
         </p>
       </motion.div>
 
@@ -145,7 +155,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                 {tier.description}
               </p>
               <div className="text-sm mb-2 opacity-60" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
-                Минимальная инвестиция
+                {t('tiers.minInvestment')}
               </div>
               <div className="text-4xl mb-3" style={{ 
                 color: tier.color,
@@ -192,7 +202,7 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
                 fontWeight: 600
               }}
             >
-              Инвестировать
+              {t('tiers.invest')}
             </button>
           </motion.div>
         ))}
@@ -213,10 +223,27 @@ export function InvestmentTiers({ isDark, walletConnected, onInvest }: Investmen
         <p className="text-sm flex items-start justify-center gap-2" style={{ color: isDark ? '#FFFAF0' : '#143C50' }}>
           <DollarSign className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#28B48C' }} />
           <span>
-            <strong>Принимаемые валюты:</strong> USDT, USDC (Binance Smart Chain) • 
-            <strong> Комиссия сети:</strong> ~$0.20 • 
-            <strong> Зачисление:</strong> напрямую на корпоративный кошелек
+            <strong>{t('tiers.currencies')}</strong> USDT, USDC (Binance Smart Chain) •
+            <strong> {t('tiers.networkFee')}</strong> ~$0.20 •
+            <strong> {t('tiers.deposit')}</strong> {t('tiers.directToWallet')}
           </span>
+        </p>
+      </motion.div>
+
+      {/* Legal Disclaimer - Not a public offering */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: 0.5 }}
+        className="mt-6 text-center"
+      >
+        <p className="text-xs px-4 py-2 inline-block rounded-lg" style={{
+          color: isDark ? 'rgba(255, 250, 240, 0.6)' : 'rgba(20, 60, 80, 0.6)',
+          backgroundColor: isDark ? 'rgba(255, 100, 100, 0.1)' : 'rgba(200, 50, 50, 0.05)',
+          border: `1px solid ${isDark ? 'rgba(255, 100, 100, 0.2)' : 'rgba(200, 50, 50, 0.1)'}`
+        }}>
+          ⚠️ {t('tiers.notPublicOffering')}
         </p>
       </motion.div>
     </div>
