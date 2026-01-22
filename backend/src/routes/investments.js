@@ -179,7 +179,7 @@ router.post('/', [
           txHash,
           platformWallet,
           amountUsdt,
-          5, // 5% tolerance for network fees/rounding
+          0.5, // 0.5% tolerance for minor rounding only (SECURITY: was 5%, reduced to prevent underpayment)
           network
         );
 
@@ -894,7 +894,7 @@ router.post('/verify-tx/:id', authenticateToken, requireAdmin, async (req, res) 
       investment.tx_hash,
       platformWallet,
       parseFloat(investment.amount_usdt),
-      5, // 5% tolerance
+      0.5, // 0.5% tolerance (SECURITY: reduced from 5%)
       investment.network || 'mainnet'
     );
 

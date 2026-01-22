@@ -287,9 +287,11 @@ router.post('/wallet/nonce', [
 });
 
 // Register user by wallet with signature verification
+// Supports both external wallets (with signature) and embedded wallets (social login, without signature)
 router.post('/wallet/connect', [
   body('walletAddress').matches(/^0x[a-fA-F0-9]{40}$/),
-  body('signature').matches(/^0x[a-fA-F0-9]+$/).optional()
+  body('signature').optional().matches(/^0x[a-fA-F0-9]+$/),
+  body('isEmbeddedWallet').optional().isBoolean()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -297,10 +299,20 @@ router.post('/wallet/connect', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { walletAddress, signature } = req.body;
+    const { walletAddress, signature, isEmbeddedWallet } = req.body;
     const lowerAddress = walletAddress.toLowerCase();
 
-    if (signature) {
+    // For external wallets: signature is REQUIRED
+    // For embedded wallets (social login): signature is skipped
+    if (!isEmbeddedWallet && !signature) {
+      return res.status(401).json({
+        error: 'Signature is required for wallet authentication.',
+        code: 'SIGNATURE_REQUIRED'
+      });
+    }
+
+    // Verify signature for external wallets
+    if (signature && !isEmbeddedWallet) {
       const storedData = await getNonce(lowerAddress);
 
       if (!storedData) {
@@ -331,6 +343,7 @@ router.post('/wallet/connect', [
       }
     }
 
+
     let result = await pool.query('SELECT * FROM users WHERE wallet_address = $1', [lowerAddress]);
 
     if (result.rows.length === 0) {
@@ -359,7 +372,8 @@ router.post('/wallet/connect', [
       details: {
         walletAddress: lowerAddress,
         isNewUser: result.command === 'INSERT',
-        signatureVerified: !!signature
+        signatureVerified: !!signature,
+        isEmbeddedWallet: !!isEmbeddedWallet
       }
     });
 

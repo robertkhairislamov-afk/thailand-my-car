@@ -28,8 +28,10 @@ async function recalculateEarnings() {
     const carShareReturn = parseFloat(await getSetting('large_investor_return', '20')) / 100;
 
     // Получить все активные инвестиции
+    // SECURITY: Include total_withdrawn_earnings to prevent infinite money glitch
     const investments = await pool.query(`
-      SELECT id, amount_usdt, tier_type, invested_at, staking_earned, last_staking_calc, network
+      SELECT id, amount_usdt, tier_type, invested_at, staking_earned, last_staking_calc, network,
+             COALESCE(total_withdrawn_earnings, 0) as total_withdrawn_earnings
       FROM investments
       WHERE status = 'active'
     `);
@@ -43,24 +45,36 @@ async function recalculateEarnings() {
       const principal = parseFloat(inv.amount_usdt);
       const investedAt = new Date(inv.invested_at);
       const now = new Date();
+      // SECURITY: Account for already withdrawn earnings to prevent infinite money glitch
+      const totalWithdrawn = parseFloat(inv.total_withdrawn_earnings) || 0;
 
       // Рассчитать дни с момента инвестиции
       const daysPassed = Math.floor((now.getTime() - investedAt.getTime()) / (1000 * 60 * 60 * 24));
       const monthsPassed = daysPassed / 30.44;
 
-      let totalEarnings = 0;
+      let grossEarnings = 0; // Total earnings since investment start
       let lockPeriodMonths = 0;
 
       if (inv.tier_type === 'staking') {
         // Стейкинг: 2.5% в месяц, лок 12 месяцев
         lockPeriodMonths = 12;
         const effectiveMonths = Math.min(monthsPassed, lockPeriodMonths);
-        totalEarnings = principal * stakingMonthlyRate * effectiveMonths;
+        grossEarnings = principal * stakingMonthlyRate * effectiveMonths;
       } else if (inv.tier_type === 'car_share') {
         // Доля в авто: 20% за 6 месяцев
         lockPeriodMonths = 6;
         const effectiveMonths = Math.min(monthsPassed, lockPeriodMonths);
-        totalEarnings = principal * carShareReturn * (effectiveMonths / lockPeriodMonths);
+        grossEarnings = principal * carShareReturn * (effectiveMonths / lockPeriodMonths);
+      }
+
+      // SECURITY FIX: Available earnings = gross earnings - already withdrawn
+      // This prevents the "infinite money glitch" where withdrawn earnings are restored
+      let totalEarnings = grossEarnings - totalWithdrawn;
+
+      // Ensure earnings don't go negative (edge case protection)
+      if (totalEarnings < 0) {
+        console.warn(`  [WARNING] Negative earnings for ${inv.id}: gross=${grossEarnings}, withdrawn=${totalWithdrawn}`);
+        totalEarnings = 0;
       }
 
       // Округлить до 2 знаков
