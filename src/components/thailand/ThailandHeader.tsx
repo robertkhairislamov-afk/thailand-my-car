@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Moon, Sun, Menu, X, Wallet, Globe, LogOut, Loader2 } from 'lucide-react';
-import { useAppKit, useAppKitAccount, useDisconnect, useAppKitProvider } from '@reown/appkit/react';
-import { BrowserProvider } from 'ethers';
+import { useAppKit, useAppKitAccount, useDisconnect, useAppKitProvider, useAppKitNetwork } from '@reown/appkit/react';
+import { BrowserProvider, JsonRpcSigner } from 'ethers';
 import type { Provider } from '@reown/appkit';
 import { api } from '../../services/api';
 import { MobileWalletHelper, isMobileDevice, isWalletBrowser } from './MobileWalletHelper';
@@ -60,6 +60,7 @@ export function ThailandHeader({
   const { address, isConnected } = useAppKitAccount();
   const { disconnect } = useDisconnect();
   const { walletProvider } = useAppKitProvider<Provider>('eip155');
+  const { chainId } = useAppKitNetwork();
 
   // ✅ FIX: Ref для предотвращения повторных авторизаций
   const isAuthenticatingRef = useRef(false);
@@ -139,48 +140,64 @@ export function ThailandHeader({
 
     const syncWallet = async () => {
       let authSuccess = false;
+      let isEmbeddedWallet = false;
 
       try {
-        // Step 1: Get nonce from server
-        const nonceResponse = await api.getWalletNonce(address);
-
-        if (nonceResponse.error || !nonceResponse.data?.message) {
-          // Fallback: подключение без подписи
-          const response = await api.connectWallet(address);
-          if (response.data?.accessToken) {
-            api.setToken(response.data.accessToken);
-            if (response.data.refreshToken) {
-              localStorage.setItem('refresh_token', response.data.refreshToken);
+        // Step 1: Wait for wallet provider (embedded wallets may take time)
+        let currentProvider = walletProvider;
+        if (!currentProvider) {
+          for (let i = 0; i < 6; i++) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (walletProvider) {
+              currentProvider = walletProvider;
+              break;
             }
-            authSuccess = true;
-          }
-        } else {
-          // Step 2: Sign the message
-          let signature: string | null = null;
-
-          if (walletProvider) {
-            try {
-              const provider = new BrowserProvider(walletProvider);
-              const signer = await provider.getSigner();
-              signature = await signer.signMessage(nonceResponse.data.message);
-            } catch (signError) {
-              // Продолжаем без подписи
-            }
-          }
-
-          // Step 3: Connect with signature (or without if signing failed)
-          const response = await api.connectWallet(address, signature || undefined);
-
-          if (response.data?.accessToken) {
-            api.setToken(response.data.accessToken);
-            if (response.data.refreshToken) {
-              localStorage.setItem('refresh_token', response.data.refreshToken);
-            }
-            authSuccess = true;
           }
         }
+
+        // Step 2: Try to get signature (if provider available)
+        let signature: string | undefined;
+
+        if (currentProvider) {
+          // External wallet - get nonce and sign
+          const nonceResponse = await api.getWalletNonce(address);
+          if (nonceResponse.error || !nonceResponse.data?.message) {
+            console.error('Failed to get nonce:', nonceResponse.error);
+            throw new Error('Failed to get authentication nonce');
+          }
+
+          try {
+            const numericChainId = chainId ? Number(chainId) : undefined;
+            const provider = new BrowserProvider(currentProvider, numericChainId);
+            const signer = new JsonRpcSigner(provider, address);
+            signature = await signer.signMessage(nonceResponse.data.message);
+          } catch (signError) {
+            console.error('Signature rejected or failed:', signError);
+            if (signError instanceof Error && signError.message.includes('user rejected')) {
+              throw new Error('Signature was rejected. Please approve the signature request.');
+            }
+            throw new Error('Signature is required for authentication');
+          }
+        } else {
+          // Embedded wallet (social login) - no signature available
+          isEmbeddedWallet = true;
+        }
+
+        // Step 3: Connect wallet
+        const response = await api.connectWallet(address, signature, isEmbeddedWallet);
+
+        if (response.data?.accessToken) {
+          api.setToken(response.data.accessToken);
+          if (response.data.refreshToken) {
+            localStorage.setItem('refresh_token', response.data.refreshToken);
+          }
+          authSuccess = true;
+        } else if (response.error) {
+          console.error('Connect wallet error:', response.error);
+          throw new Error(response.error);
+        }
       } catch (error) {
-        // Auth exception
+        console.error('Auth exception:', error);
       } finally {
         setIsSigningMessage(false);
         isAuthenticatingRef.current = false;
@@ -201,7 +218,7 @@ export function ThailandHeader({
     };
 
     syncWallet();
-  }, [isConnected, address, walletProvider, walletAddress, onWalletChange, disconnect]);
+  }, [isConnected, address, walletProvider, walletAddress, onWalletChange, disconnect, chainId]);
 
   const connectWallet = () => {
     // On mobile, if not in wallet browser, show helper

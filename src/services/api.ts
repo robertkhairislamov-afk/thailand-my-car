@@ -68,10 +68,10 @@ class ApiService {
     });
   }
 
-  async connectWallet(walletAddress: string, signature?: string) {
+  async connectWallet(walletAddress: string, signature?: string, isEmbeddedWallet?: boolean) {
     return this.request<{ accessToken: string; refreshToken: string; expiresIn: number; user: any }>('/api/auth/wallet/connect', {
       method: 'POST',
-      body: JSON.stringify({ walletAddress, signature }),
+      body: JSON.stringify({ walletAddress, signature, isEmbeddedWallet }),
     });
   }
 
