@@ -981,6 +981,7 @@ router.get('/earnings-stats', async (req, res) => {
 
 
 // Admin: Create manual investment deposit
+// Uses advisory lock to prevent race condition when assigning cars
 router.post("/investments/create", requireSuperAdmin, [
   body("wallet_address").isString().isLength({ min: 42, max: 42 }).matches(/^0x[a-fA-F0-9]{40}$/),
   body("amount_usdt").isInt({ min: 1000 }),
@@ -995,20 +996,30 @@ router.post("/investments/create", requireSuperAdmin, [
   const { wallet_address, amount_usdt, tier_type, network } = req.body;
   const lowerAddress = wallet_address.toLowerCase();
 
-  try {
-    if (tier_type === "staking" && amount_usdt < 1000) {
-      return res.status(400).json({ error: "Минимум для стейкинга: \$1,000" });
-    }
-    if (tier_type === "car_share" && amount_usdt < 12400) {
-      return res.status(400).json({ error: "Минимум для доли в авто: \$12,400" });
-    }
+  // Validate amounts before transaction
+  if (tier_type === "staking" && amount_usdt < 1000) {
+    return res.status(400).json({ error: "Минимум для стейкинга: $1,000" });
+  }
+  if (tier_type === "car_share" && amount_usdt < 12400) {
+    return res.status(400).json({ error: "Минимум для доли в авто: $12,400" });
+  }
 
-    let userResult = await pool.query("SELECT id FROM users WHERE LOWER(wallet_address) = \$1", [lowerAddress]);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Advisory lock to prevent race condition when assigning cars
+    // Lock ID 123456789 is unique for car assignment operations
+    await client.query('SELECT pg_advisory_xact_lock(123456789)');
+
+    // Find or create user
+    let userResult = await client.query("SELECT id FROM users WHERE LOWER(wallet_address) = $1", [lowerAddress]);
     let userId;
-    
+
     if (userResult.rows.length === 0) {
-      const newUser = await pool.query(
-        "INSERT INTO users (wallet_address, created_at) VALUES (\$1, NOW()) RETURNING id",
+      const newUser = await client.query(
+        "INSERT INTO users (wallet_address, created_at) VALUES ($1, NOW()) RETURNING id",
         [lowerAddress]
       );
       userId = newUser.rows[0].id;
@@ -1016,17 +1027,19 @@ router.post("/investments/create", requireSuperAdmin, [
       userId = userResult.rows[0].id;
     }
 
+    // Check car availability for car_share tier
     if (tier_type === "car_share") {
-      const carsUsed = await pool.query(
-        "SELECT COUNT(*) as used FROM investments WHERE tier_type = 'car_share' AND status NOT IN ('rejected', 'cancelled', 'refunded') AND COALESCE(network, 'mainnet') = \$1",
+      const carsUsed = await client.query(
+        "SELECT COUNT(*) as used FROM investments WHERE tier_type = 'car_share' AND status NOT IN ('rejected', 'cancelled', 'refunded') AND COALESCE(network, 'mainnet') = $1",
         [network]
       );
       if (parseInt(carsUsed.rows[0].used) >= 9) {
+        await client.query('ROLLBACK');
         return res.status(400).json({ error: "Все 9 машин уже заняты" });
       }
     }
 
-    const tierResult = await pool.query("SELECT id FROM investment_tiers LIMIT 1");
+    const tierResult = await client.query("SELECT id FROM investment_tiers LIMIT 1");
     const tierId = tierResult.rows[0]?.id || 1;
 
     const lockMonths = tier_type === "staking" ? 12 : 6;
@@ -1036,49 +1049,58 @@ router.post("/investments/create", requireSuperAdmin, [
     const amountBaht = amount_usdt * 35;
     const txHash = "admin_" + Date.now();
 
-    const result = await pool.query(
-      "INSERT INTO investments (user_id, tier_id, wallet_address, amount_usdt, amount_baht, tx_hash, maturity_date, status, tier_type, last_staking_calc, tx_verified, tx_verification_status, network, invested_at) VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, 'active', \$8, NOW(), true, 'admin_created', \$9, NOW()) RETURNING *",
+    const result = await client.query(
+      "INSERT INTO investments (user_id, tier_id, wallet_address, amount_usdt, amount_baht, tx_hash, maturity_date, status, tier_type, last_staking_calc, tx_verified, tx_verification_status, network, invested_at) VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, NOW(), true, 'admin_created', $9, NOW()) RETURNING *",
       [userId, tierId, lowerAddress, amount_usdt, amountBaht, txHash, maturityDate, tier_type, network]
     );
 
     const investment = result.rows[0];
 
+    // Assign car if car_share tier
     if (tier_type === "car_share") {
-      const usedCars = await pool.query("SELECT car_number FROM car_assignments ORDER BY car_number");
+      const usedCars = await client.query("SELECT car_number FROM car_assignments ORDER BY car_number");
       const usedNumbers = new Set(usedCars.rows.map(r => r.car_number));
       let carNumber = 1;
       while (usedNumbers.has(carNumber) && carNumber <= 9) {
         carNumber++;
       }
       if (carNumber <= 9) {
-        await pool.query(
-          "INSERT INTO car_assignments (car_number, investment_id, wallet_address, status) VALUES (\$1, \$2, \$3, 'reserved')",
+        await client.query(
+          "INSERT INTO car_assignments (car_number, investment_id, wallet_address, status) VALUES ($1, $2, $3, 'reserved')",
           [carNumber, investment.id, lowerAddress]
         );
-        await pool.query(
-          "UPDATE investments SET car_assigned = true, car_number = \$1 WHERE id = \$2",
+        await client.query(
+          "UPDATE investments SET car_assigned = true, car_number = $1 WHERE id = $2",
           [carNumber, investment.id]
         );
+        investment.car_number = carNumber;
+        investment.car_assigned = true;
       }
     }
 
+    await client.query('COMMIT');
+
+    // Log activity after successful commit
     await logActivity({
       userId: req.user.id,
       action: "admin_create_investment",
       entityType: "investment",
       entityId: investment.id,
-      details: { wallet: lowerAddress, amount: amount_usdt, tier_type, network },
+      details: { wallet: lowerAddress, amount: amount_usdt, tier_type, network, car_number: investment.car_number },
       ipAddress: getClientIp(req)
     });
 
     res.json({
       success: true,
-      investment: { id: investment.id, amount_usdt, tier_type, status: "active", network, wallet_address: lowerAddress }
+      investment: { id: investment.id, amount_usdt, tier_type, status: "active", network, wallet_address: lowerAddress, car_number: investment.car_number }
     });
 
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error("Admin create investment error:", error);
     res.status(500).json({ error: "Server error: " + error.message });
+  } finally {
+    client.release();
   }
 });
 
