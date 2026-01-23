@@ -7,6 +7,8 @@
     "start": "node --env-file=.env src/index.js",
     "dev": "node --env-file=.env --watch src/index.js",
     "db:migrate": "node --env-file=.env src/config/migrate.js",
+    "db:migrate:missing": "node --env-file=.env src/config/migrate-missing.js",
+    "db:migrate:all": "npm run db:migrate && npm run db:migrate:missing",
     "db:seed": "node --env-file=.env src/config/seed.js"
   },
   "dependencies": {

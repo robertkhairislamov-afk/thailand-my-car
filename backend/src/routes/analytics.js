@@ -10,6 +10,34 @@ const { authenticateToken } = require("../middleware/auth");
 // Кэш для гео-данных (чтобы не спамить ip-api.com)
 const geoCache = new Map();
 const GEO_CACHE_TTL = 3600000; // 1 час
+const MAX_CACHE_SIZE = 10000;
+
+// Cleanup job - каждую минуту
+setInterval(() => {
+  const now = Date.now();
+  let deleted = 0;
+
+  for (const [ip, entry] of geoCache.entries()) {
+    if (now - entry.timestamp > GEO_CACHE_TTL) {
+      geoCache.delete(ip);
+      deleted++;
+    }
+  }
+
+  // Hard limit - удаляем старейшие если превышен лимит
+  if (geoCache.size > MAX_CACHE_SIZE) {
+    const entries = [...geoCache.entries()]
+      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+    const toDelete = entries.slice(0, Math.floor(MAX_CACHE_SIZE / 2));
+    toDelete.forEach(([ip]) => geoCache.delete(ip));
+    deleted += toDelete.length;
+  }
+
+  if (deleted > 0) {
+    console.log(`[GeoCache] Cleaned ${deleted} entries, size: ${geoCache.size}`);
+  }
+}, 60000);
 
 // Получить гео-данные по IP
 async function getGeoData(ip) {
